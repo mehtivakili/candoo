@@ -112,14 +112,14 @@ export default function SnappFoodSearch() {
       id: 'products',
       name: 'جستجوی محصولات',
       description: 'جستجو برای غذاها و محصولات',
-      endpoint: '/api/sophisticated-automation',
+      endpoint: '/api/vendor-menu',
       icon: <Search className="w-5 h-5" />
     },
     {
       id: 'vendors',
       name: 'جستجوی فروشگاه‌ها',
       description: 'جستجو برای رستوران‌ها و فروشگاه‌ها',
-      endpoint: '/api/sophisticated-automation',
+      endpoint: '/api/vendor-menu',
       icon: <Store className="w-5 h-5" />
     }
   ];
@@ -131,7 +131,7 @@ export default function SnappFoodSearch() {
 
   const checkBrowserStatus = async () => {
     try {
-      const response = await fetch('/api/sophisticated-automation');
+      const response = await fetch('/api/vendor-menu');
       
       // Check if response is ok and has content
       if (!response.ok) {
@@ -161,7 +161,7 @@ export default function SnappFoodSearch() {
     addLog('🔒 Closing browser instance...');
     
     try {
-      const response = await fetch('/api/sophisticated-automation', {
+      const response = await fetch('/api/vendor-menu', {
         method: 'DELETE'
       });
       
