@@ -39,3 +39,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# browser profiles (contains user data and cache)
+/snapp-profile/
+
+# IDE settings
+/.vscode/
+
+# temporary test files
+test-*.js
+
+# documentation drafts (optional - uncomment if you want to exclude)
+# *_SUMMARY.md
+# *_GUIDE.md
+# START_HERE.md

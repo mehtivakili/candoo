@@ -1,0 +1,13 @@
+# PostgreSQL Database Configuration Template
+# 
+# Create a file named ".env.local" in the project root and add these variables:
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=candoo
+DB_USER=postgres
+DB_PASSWORD=1234
+
+# Note: .env.local is automatically loaded by Next.js and ignored by git
+# If you change these values, restart the Next.js development server
+
