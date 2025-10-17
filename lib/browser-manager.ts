@@ -1,22 +1,37 @@
 import { SophisticatedSnappFoodAutomation } from './sophisticated-automation';
 
+// Use Node.js global object to persist across all API calls
+declare global {
+  var __browserManager: BrowserManager | undefined;
+}
+
 class BrowserManager {
-  private static instance: BrowserManager;
   private automation: SophisticatedSnappFoodAutomation | null = null;
   private isInitialized: boolean = false;
 
-  private constructor() {}
+  private constructor() {
+    console.log('🔧 BrowserManager constructor called');
+  }
 
   public static getInstance(): BrowserManager {
-    if (!BrowserManager.instance) {
-      BrowserManager.instance = new BrowserManager();
+    console.log('🔧 BrowserManager.getInstance() called');
+    
+    if (!global.__browserManager) {
+      console.log('🔧 Creating NEW BrowserManager instance');
+      global.__browserManager = new BrowserManager();
+    } else {
+      console.log('🔧 REUSING existing BrowserManager instance');
     }
-    return BrowserManager.instance;
+    
+    return global.__browserManager;
   }
 
   public async getAutomation(): Promise<SophisticatedSnappFoodAutomation> {
+    console.log('🔍 BrowserManager.getAutomation() called');
+    console.log('🔍 this.automation exists:', !!this.automation);
+    
     if (!this.automation) {
-      console.log('🔄 Creating new automation instance...');
+      console.log('🔄 Creating SINGLE automation instance...');
       this.automation = new SophisticatedSnappFoodAutomation();
       await this.automation.initialize({
         useSurvey: false,
@@ -26,45 +41,9 @@ class BrowserManager {
         waitForResults: 5000
       });
       this.isInitialized = true;
-      console.log('✅ New automation instance created and initialized');
+      console.log('✅ SINGLE automation instance created - will NEVER create another');
     } else {
-      // Check if browser is actually open and working
-      const isBrowserOpen = this.automation.isBrowserOpen();
-      console.log('🔍 Browser status check:', {
-        browser: !!this.automation.browser,
-        page: !!this.automation.page,
-        pageClosed: this.automation.page?.isClosed(),
-        isBrowserOpen
-      });
-      
-      if (!isBrowserOpen) {
-        console.log('🔄 Browser closed, reinitializing automation...');
-        try {
-          await this.automation.initialize({
-            useSurvey: false,
-            surveyUrl: 'https://snappfood.ir/',
-            maxRetries: 3,
-            timeout: 30000,
-            waitForResults: 5000
-          });
-          console.log('✅ Automation reinitialized');
-        } catch (error) {
-          console.log('⚠️ Reinitialization failed, creating new instance...');
-          // If reinitialization fails, create a completely new instance
-          await this.automation.close();
-          this.automation = new SophisticatedSnappFoodAutomation();
-          await this.automation.initialize({
-            useSurvey: false,
-            surveyUrl: 'https://snappfood.ir/',
-            maxRetries: 3,
-            timeout: 30000,
-            waitForResults: 5000
-          });
-          console.log('✅ New automation instance created after reinitialization failure');
-        }
-      } else {
-        console.log('✅ Reusing existing automation instance - browser already open');
-      }
+      console.log('✅ REUSING existing automation instance - NO NEW BROWSER');
     }
     
     return this.automation;
@@ -132,6 +111,19 @@ class BrowserManager {
       await this.forceClose();
     } else {
       console.log('✅ Browser is healthy, no need to force close');
+    }
+  }
+
+  public async keepBrowserAlive(): Promise<void> {
+    if (this.automation && this.automation.isBrowserOpen()) {
+      console.log('🔄 Keeping browser alive...');
+      // Just check if browser is still responsive
+      try {
+        await this.automation.keepBrowserAlive();
+        console.log('✅ Browser is responsive and alive');
+      } catch (error) {
+        console.log('⚠️ Browser not responsive, will reinitialize on next use');
+      }
     }
   }
 

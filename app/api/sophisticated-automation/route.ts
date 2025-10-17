@@ -54,6 +54,9 @@ export async function POST(request: NextRequest) {
         };
       }
       
+      // Keep browser alive for next operation instead of closing it
+      await browserManager.keepBrowserAlive();
+      
       return NextResponse.json(result);
       
     } catch (error) {

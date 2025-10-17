@@ -98,8 +98,11 @@ export class SophisticatedSnappFoodAutomation {
         return;
       }
       
-      // Clean up any existing browser instances
+      // Only clean up if browser exists but is not working properly
+      if (this.browser && !this.isBrowserOpen()) {
+        console.log('🧹 Cleaning up non-functional browser instance...');
       await this.cleanupBrowser();
+      }
       
       // Initialize browser with retry logic
       console.log('🌐 Starting browser...');
@@ -109,9 +112,13 @@ export class SophisticatedSnappFoodAutomation {
       
       while (retryCount < maxRetries) {
         try {
+          // Generate unique user data dir to avoid conflicts
+          const timestamp = Date.now();
+          const userDataDir = `./snapp-profile-${timestamp}`;
+          
           this.browser = await puppeteer.launch({
             headless: false, // Show browser for user interaction
-            userDataDir: './snapp-profile', // Create a new profile for SnappFood
+            userDataDir: userDataDir, // Use unique profile directory
             args: [
               '--no-sandbox',
               '--disable-setuid-sandbox',
@@ -176,8 +183,9 @@ export class SophisticatedSnappFoodAutomation {
     timeout: 30000,
     waitForResults: 5000
   }): Promise<SearchResult> {
-    // Ensure browser is open before proceeding
+    // Ensure browser and page are open before proceeding
     await this.ensureBrowserOpen();
+    await this.ensurePageOpen();
 
     try {
       console.log(`🔍 Starting product search for "${searchTerm}"...`);
@@ -233,33 +241,21 @@ export class SophisticatedSnappFoodAutomation {
   }
 
   async extractVendorMenu(vendorUrl: string): Promise<VendorMenuData> {
-    // Check if browser is open, if not, initialize it
-    if (!this.isBrowserOpen()) {
-      console.log('🔄 Browser not open, initializing for vendor menu extraction...');
-      await this.initialize({
-        useSurvey: false,
-        surveyUrl: 'https://snappfood.ir/',
-        maxRetries: 3,
-        timeout: 30000,
-        waitForResults: 5000
-      });
+    // Just use existing browser - NO CHECKS, NO NEW BROWSER
+    if (!this.browser || !this.page) {
+      throw new Error('Browser not initialized');
     }
 
     try {
       console.log(`🔍 Extracting vendor menu from: ${vendorUrl}`);
       
-      // Navigate to the vendor page with relaxed conditions
-      console.log('🌐 Navigating to vendor page...');
-      try {
-        await this.page?.goto(vendorUrl, {
-          waitUntil: 'domcontentloaded', // Changed from 'networkidle2' to be less strict
-          timeout: 60000 // Increased timeout to 60 seconds
-        });
-        console.log('✅ Page navigation completed');
-      } catch (navError) {
-        console.error('⚠️ Navigation error, but will try to extract anyway:', navError);
-        // Don't throw yet - the page might have partially loaded
-      }
+      // Navigate to the vendor page using existing browser
+      console.log('🌐 Navigating to vendor page using EXISTING browser...');
+      await this.page.goto(vendorUrl, {
+        waitUntil: 'domcontentloaded',
+        timeout: 60000
+      });
+      console.log('✅ Page navigation completed');
 
       // Wait a bit for dynamic content to load
       await this.delay(3000);
@@ -522,6 +518,19 @@ export class SophisticatedSnappFoodAutomation {
           const imgElement = card.querySelector('.ProductCard__ImgWrapper-sc-1wfx2e0-3 img');
           const imageUrl = imgElement?.getAttribute('src') || null;
 
+          // Check if product is unavailable (ناموجود)
+          const isUnavailable = !finalPrice && !originalPrice && (
+            name.toLowerCase().includes('ناموجود') || 
+            description.toLowerCase().includes('ناموجود') ||
+            footerElement?.textContent?.toLowerCase().includes('ناموجود')
+          );
+
+          // Skip unavailable products
+          if (isUnavailable) {
+            console.log(`⏭️ Skipping unavailable product: ${name}`);
+            return;
+          }
+
           // Debug logging for first few items
           if (items.length < 3) {
             console.log(`\n✅ Item ${items.length + 1}: ${name}`);
@@ -588,8 +597,9 @@ export class SophisticatedSnappFoodAutomation {
     timeout: 30000,
     waitForResults: 5000
   }): Promise<VendorResult[]> {
-    // Ensure browser is open before proceeding
+    // Ensure browser and page are open before proceeding
     await this.ensureBrowserOpen();
+    await this.ensurePageOpen();
 
     try {
       console.log(`🔍 Starting vendor search for "${searchTerm}"...`);
@@ -655,8 +665,9 @@ export class SophisticatedSnappFoodAutomation {
     timeout: 30000,
     waitForResults: 5000
   }): Promise<SearchResult> {
-    // Ensure browser is open before proceeding
+    // Ensure browser and page are open before proceeding
     await this.ensureBrowserOpen();
+    await this.ensurePageOpen();
 
     try {
       console.log(`🔍 Starting sophisticated search for "${searchTerm}"...`);
@@ -2030,14 +2041,13 @@ export class SophisticatedSnappFoodAutomation {
   }
 
   async keepBrowserAlive(): Promise<void> {
-    if (this.browser && this.page) {
-      console.log('🔄 Keeping browser alive...');
-      // Navigate to a simple page to keep the browser active
+    if (this.isBrowserOpen()) {
       try {
-        await this.page?.goto('about:blank');
-        console.log('✅ Browser kept alive');
+        // Just check if browser is still responsive by checking page title
+        const title = await this.page?.title();
+        console.log('✅ Browser is responsive and alive');
       } catch (error) {
-        console.log('⚠️ Could not keep browser alive:', error);
+        console.log('⚠️ Browser not responsive, will reinitialize on next use');
       }
     }
   }
@@ -2061,19 +2071,74 @@ export class SophisticatedSnappFoodAutomation {
   }
 
   isBrowserOpen(): boolean {
-    return this.browser !== null && this.page !== null && !this.page.isClosed();
+    const browserExists = this.browser !== null;
+    const browserConnected = this.browser?.isConnected() || false;
+    const pageExists = this.page !== null;
+    
+    // More lenient check - if browser exists and is connected, consider it open
+    // Don't rely on page.isClosed() as it might be unreliable
+    const isOpen = browserExists && browserConnected && pageExists;
+    
+    console.log('🔍 Browser status check:', {
+      browserExists,
+      browserConnected,
+      pageExists,
+      isOpen,
+      pageClosed: this.page?.isClosed() || 'no-page'
+    });
+    
+    return isOpen;
   }
 
   async ensureBrowserOpen(): Promise<void> {
-    if (!this.isBrowserOpen()) {
-      console.log('🔄 Browser not open, initializing...');
-      await this.initialize();
-    } else {
-      console.log('✅ Browser is already open and ready');
+    // NEVER create new browser - only use existing one
+    if (this.browser && this.page) {
+      console.log('✅ Using existing browser - NO NEW BROWSER');
+      return;
     }
+    
+    console.log('❌ NO BROWSER EXISTS - This should not happen!');
+    throw new Error('Browser should have been created at startup');
+  }
+
+  async ensurePageOpen(): Promise<void> {
+    // NEVER create new page - only use existing one
+    if (this.page) {
+      console.log('✅ Using existing page - NO NEW PAGE');
+      return;
+    }
+    
+    console.log('❌ NO PAGE EXISTS - This should not happen!');
+    throw new Error('Page should have been created at startup');
   }
 
   getSurveyData(): DOMSurveyResult | null {
     return this.surveyData;
+  }
+
+  getBrowserInfo(): any {
+    return {
+      browserExists: !!this.browser,
+      browserConnected: this.browser?.isConnected() || false,
+      pageExists: !!this.page,
+      pageClosed: this.page?.isClosed() || 'no-page',
+      sessionId: this.sessionId,
+      url: this.page?.url() || 'no-url'
+    };
+  }
+
+  async testBrowserUsability(): Promise<boolean> {
+    if (!this.browser || !this.page) {
+      return false;
+    }
+    
+    try {
+      // Try a simple operation to test if browser is usable
+      await this.page.title();
+      return true;
+    } catch (error) {
+      console.log('⚠️ Browser test failed:', error);
+      return false;
+    }
   }
 }

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     // 1. General Statistics
     const generalStats = await query(`
       SELECT 
-        COUNT(*) as total_items,
+        COUNT(DISTINCT CONCAT(article_id, '|', vendor_id)) as total_items,
         COUNT(DISTINCT vendor_id) as total_vendors,
         COUNT(DISTINCT vendor_name) as total_vendor_names,
         COUNT(DISTINCT "group") as total_categories,
@@ -24,7 +24,9 @@ export async function GET(request: NextRequest) {
         AVG(price) as avg_price,
         MIN(price) as min_price,
         MAX(price) as max_price,
-        AVG(original_price) as avg_original_price
+        AVG(original_price) as avg_original_price,
+        COUNT(DISTINCT DATE(created_at)) as total_days,
+        COUNT(*) as total_records
       FROM menus
       WHERE price IS NOT NULL
     `);

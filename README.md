@@ -13,12 +13,12 @@ Web scraper and analytics dashboard for SnappFood restaurant menus with price tr
 ## Setup
 
 ### 1. Install Dependencies
-```bash
-npm install
-```
+   ```bash
+   npm install
+   ```
 
 ### 2. Setup Database
-```bash
+   ```bash
 npm run setup-db
 ```
 
@@ -32,14 +32,14 @@ Make sure PostgreSQL is running. Default connection:
 Edit `lib/database.ts` to change database credentials.
 
 ### 3. Generate Sample Data (Optional)
-```bash
+   ```bash
 npm run generate-data
 ```
 
 ### 4. Run
-```bash
-npm run dev
-```
+   ```bash
+   npm run dev
+   ```
 
 Open http://localhost:3000
 

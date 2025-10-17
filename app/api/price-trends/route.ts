@@ -125,11 +125,12 @@ export async function GET(request: NextRequest) {
       SELECT DISTINCT "group" 
       FROM menus 
       WHERE "group" IS NOT NULL
+      ${vendorName && vendorName !== 'all' ? `AND vendor_name = $1` : ''}
       ORDER BY "group"
-    `);
+    `, vendorName && vendorName !== 'all' ? [vendorName] : []);
 
     // Get items for selected vendor/group
-    let itemsQuery: any = { rows: [] };
+    let itemsQuery: { rows: { article_id: string }[] } = { rows: [] };
     if (vendorName && vendorName !== 'all') {
       const itemConditions = [`vendor_name = $1`];
       const itemParams: any[] = [vendorName];

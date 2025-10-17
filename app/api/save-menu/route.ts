@@ -50,6 +50,17 @@ export async function POST(request: NextRequest) {
     
     menuData.categories.forEach((category: any) => {
       category.items.forEach((item: any) => {
+        // Skip unavailable products (ناموجود)
+        const isUnavailable = !item.pricing?.finalPrice && !item.pricing?.originalPrice && (
+          (item.name && item.name.toLowerCase().includes('ناموجود')) ||
+          (item.description && item.description.toLowerCase().includes('ناموجود'))
+        );
+
+        if (isUnavailable) {
+          console.log(`⏭️ Skipping unavailable product: ${item.name}`);
+          return;
+        }
+
         items.push({
           article_id: item.name || 'Unknown Product',
           vendor_id: menuData.restaurant.url,

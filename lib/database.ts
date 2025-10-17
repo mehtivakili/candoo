@@ -4,7 +4,7 @@
  * This module provides connection and query utilities for the Candoo database.
  */
 
-import { Pool, QueryResult } from 'pg';
+import { Pool, QueryResult, QueryResultRow } from 'pg';
 
 // Database configuration
 const dbConfig = {
@@ -59,7 +59,7 @@ export async function testConnection(): Promise<boolean> {
 /**
  * Execute a query
  */
-export async function query<T = any>(
+export async function query<T extends QueryResultRow = any>(
   text: string,
   params?: any[]
 ): Promise<QueryResult<T>> {
@@ -172,6 +172,12 @@ export async function upsertMenuItems(items: MenuItem[]): Promise<number> {
     let insertedCount = 0;
     
     for (const item of items) {
+      // Skip items with no valid price
+      if (!item.price || item.price <= 0) {
+        console.log(`⏭️ Skipping item with invalid price: ${item.article_id} (price: ${item.price})`);
+        continue;
+      }
+
       // Simple INSERT without ON CONFLICT to allow historical data
       // Each insert creates a new record with current timestamp
       const queryText = `

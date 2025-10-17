@@ -17,6 +17,7 @@ interface VendorResult {
   id: number;
   title: string;
   url: string;
+  store_id?: string;
   coverImageUrl?: string;
   logoImageUrl?: string;
   rating?: string;
@@ -112,14 +113,14 @@ export default function SnappFoodSearch() {
       id: 'products',
       name: 'جستجوی محصولات',
       description: 'جستجو برای غذاها و محصولات',
-      endpoint: '/api/vendor-menu',
+      endpoint: '/api/sophisticated-automation',
       icon: <Search className="w-5 h-5" />
     },
     {
       id: 'vendors',
       name: 'جستجوی فروشگاه‌ها',
       description: 'جستجو برای رستوران‌ها و فروشگاه‌ها',
-      endpoint: '/api/vendor-menu',
+      endpoint: '/api/sophisticated-automation',
       icon: <Store className="w-5 h-5" />
     }
   ];
@@ -131,7 +132,7 @@ export default function SnappFoodSearch() {
 
   const checkBrowserStatus = async () => {
     try {
-      const response = await fetch('/api/vendor-menu');
+      const response = await fetch('/api/sophisticated-automation');
       
       // Check if response is ok and has content
       if (!response.ok) {
@@ -161,7 +162,7 @@ export default function SnappFoodSearch() {
     addLog('🔒 Closing browser instance...');
     
     try {
-      const response = await fetch('/api/vendor-menu', {
+      const response = await fetch('/api/sophisticated-automation', {
         method: 'DELETE'
       });
       
@@ -359,8 +360,8 @@ export default function SnappFoodSearch() {
         alert(`✅ موفق!\n\n${saveData.message}\n\nرستوران: ${saveData.data?.vendorName}\nتعداد دسته‌بندی: ${saveData.data?.categoriesCount}\nتعداد کل محصولات: ${saveData.data?.totalItems}`);
         setDirectUrl('');
         
-        // Close browser after saving
-        await closeBrowser();
+        // Keep browser alive for next operation
+        addLog('🔄 Browser kept alive for next operation');
       } else {
         throw new Error(saveData.error || 'Failed to save menu');
       }
@@ -434,8 +435,8 @@ export default function SnappFoodSearch() {
         addLog(`✅ ${saveData.message}`);
         alert(`✅ موفق!\n\nرستوران با موفقیت به پایگاه داده اضافه شد\n\n${saveData.message}\n\nرستوران: ${saveData.data?.vendorName}\nتعداد دسته‌بندی: ${saveData.data?.categoriesCount}\nتعداد کل محصولات: ${saveData.data?.totalItems}`);
         
-        // Close browser after saving
-        await closeBrowser();
+        // Keep browser alive for next operation
+        addLog('🔄 Browser kept alive for next operation');
       } else {
         throw new Error(saveData.error || 'Failed to save menu');
       }
@@ -961,7 +962,7 @@ export default function SnappFoodSearch() {
                             id: vendor.store_id || vendor.title,
                             title: vendor.title,
                             url: vendor.url,
-                            store_id: vendor.store_id,
+                            store_id: vendor.store_id || '',
                             rating: vendor.rating,
                             reviews: vendor.reviews,
                             addedAt: new Date().toISOString()
@@ -976,7 +977,7 @@ export default function SnappFoodSearch() {
                             </>
                           ) : (
                             <>
-                              <Plus className="w-4 h-4" />
+                          <Plus className="w-4 h-4" />
                               <span>ذخیره در DB</span>
                             </>
                           )}

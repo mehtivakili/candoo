@@ -19,6 +19,9 @@ export async function POST(request: NextRequest) {
     try {
       const menuData = await browserManager.extractVendorMenu(vendorUrl);
       
+      // Keep browser alive for next operation instead of closing it
+      await browserManager.keepBrowserAlive();
+      
       return NextResponse.json({
         success: true,
         menuData,
