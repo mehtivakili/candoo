@@ -1,0 +1,27 @@
+{
+  "global_enabled": false,
+  "schedule": {
+    "days": [],
+    "hour": 6,
+    "minute": 0
+  },
+  "batch_settings": {
+    "max_vendors_per_run": 50,
+    "delay_between_vendors": 5000,
+    "retry_attempts": 3,
+    "timeout": 60000
+  },
+  "active_vendors": [
+    "https://snappfood.ir/restaurant/menu/P_S__%D9%81%DB%8C%D9%84%DB%8C%D9%BE%D8%B1_-r-37x9q9/",
+    "https://snappfood.ir/restaurant/menu/%D9%BE%DB%8C%D8%AA%D8%B2%D8%A7_%D8%B4%DB%8C%D9%84%D8%A7__%D9%85%DB%8C%D8%AF%D8%A7%D9%86_%D9%88%D9%84%DB%8C%D8%B9%D8%B5%D8%B1_-r-p5d5v0/",
+    "https://snappfood.ir/restaurant/menu/%D8%AA%D9%87%DB%8C%D9%87_%D8%BA%D8%B0%D8%A7%DB%8C_%D9%85%DB%8C%D9%87%D9%85%D8%A7%D9%86-r-p89xj5/",
+    "https://snappfood.ir/restaurant/menu/%D8%AF%DB%8C%D8%B2%DB%8C%D8%AA%D9%88-r-jym769/",
+    "https://snappfood.ir/restaurant/menu/%D8%B1%D8%B3%D8%AA%D9%88%D8%B1%D8%A7%D9%86_%D8%A8%D8%B1%D9%87_%D8%B3%D9%81%DB%8C%D8%AF-r-nn57xr/",
+    "https://snappfood.ir/restaurant/menu/%D8%B1%D8%B3%D8%AA%D9%88%D8%B1%D8%A7%D9%86_%DA%86%D9%86%DA%AF%D9%88-r-6dv4lg/",
+    "https://snappfood.ir/restaurant/menu/%D8%BA%D8%B0%D8%A7%DB%8C_%D8%AE%D8%A7%D9%86%DA%AF%DB%8C_%D8%A7%D9%84%D9%85%D9%88-r-0w4en8/",
+    "https://snappfood.ir/restaurant/menu/%D9%81%D8%B3%D8%AA_%D9%81%D9%88%D8%AF_%D8%AA%D8%A7%D9%86%D9%88-r-94llzd/",
+    "https://snappfood.ir/restaurant/menu/%DA%A9%D8%A8%D8%A7%D8%A8%D8%B3%D8%B1%D8%A7%DB%8C_%D8%B1%DB%8C%D8%AD%D9%88%D9%86-r-0nrxg8/",
+    "https://snappfood.ir/restaurant/menu/%DA%A9%D8%A8%D8%A7%D8%A8_%D8%A2%D8%A8%D8%A7%D9%86-r-0nnqnz/"
+  ],
+  "last_config_update": "2025-10-19T11:14:16.980Z"
+}
