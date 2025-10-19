@@ -33,34 +33,61 @@ export async function GET(request: NextRequest) {
 
     // 2. Items by Vendor
     const itemsByVendor = await query(`
+      WITH latest_items AS (
+        SELECT DISTINCT ON (article_id, vendor_id, "group")
+          vendor_name,
+          article_id,
+          "group",
+          price,
+          has_discount
+        FROM menus
+        WHERE price IS NOT NULL
+        ORDER BY article_id, vendor_id, "group", created_at DESC
+      )
       SELECT 
         vendor_name,
         COUNT(*) as item_count,
         AVG(price) as avg_price,
         COUNT(CASE WHEN has_discount THEN 1 END) as discounted_count
-      FROM menus
+      FROM latest_items
       GROUP BY vendor_name
       ORDER BY item_count DESC
-      LIMIT 20
     `);
 
     // 3. Items by Category
     const itemsByCategory = await query(`
+      WITH latest_items AS (
+        SELECT DISTINCT ON (article_id, vendor_id, "group")
+          "group",
+          article_id,
+          vendor_id,
+          price,
+          has_discount
+        FROM menus
+        WHERE price IS NOT NULL AND "group" IS NOT NULL
+        ORDER BY article_id, vendor_id, "group", created_at DESC
+      )
       SELECT 
         "group" as category,
         COUNT(*) as item_count,
         AVG(price) as avg_price,
         COUNT(CASE WHEN has_discount THEN 1 END) as discounted_count
-      FROM menus
-      WHERE "group" IS NOT NULL
+      FROM latest_items
       GROUP BY "group"
       ORDER BY item_count DESC
-      LIMIT 20
     `);
 
     // 4. Price Distribution
     const priceDistribution = await query(`
-      WITH price_ranges AS (
+      WITH latest_items AS (
+        SELECT DISTINCT ON (article_id, vendor_id, "group")
+          price,
+          CONCAT(article_id, '|', vendor_id, '|', "group") as unique_item
+        FROM menus
+        WHERE price IS NOT NULL
+        ORDER BY article_id, vendor_id, "group", created_at DESC
+      ),
+      price_ranges AS (
         SELECT 
           CASE 
             WHEN price < 50000 THEN '< 50K'
@@ -75,13 +102,13 @@ export async function GET(request: NextRequest) {
             WHEN price < 200000 THEN 3
             WHEN price < 300000 THEN 4
             ELSE 5
-          END as sort_order
-        FROM menus
-        WHERE price IS NOT NULL
+          END as sort_order,
+          unique_item
+        FROM latest_items
       )
       SELECT 
         price_range,
-        COUNT(*) as count
+        COUNT(DISTINCT unique_item) as count
       FROM price_ranges
       GROUP BY price_range, sort_order
       ORDER BY sort_order
@@ -89,13 +116,22 @@ export async function GET(request: NextRequest) {
 
     // 5. Discount Analysis
     const discountAnalysis = await query(`
+      WITH latest_items AS (
+        SELECT DISTINCT ON (article_id, vendor_id, "group")
+          discount,
+          price,
+          original_price,
+          CONCAT(article_id, '|', vendor_id, '|', "group") as unique_item
+        FROM menus
+        WHERE has_discount = TRUE AND discount IS NOT NULL AND price IS NOT NULL
+        ORDER BY article_id, vendor_id, "group", created_at DESC
+      )
       SELECT 
         discount,
-        COUNT(*) as count,
+        COUNT(DISTINCT unique_item) as count,
         AVG(price) as avg_final_price,
         AVG(original_price) as avg_original_price
-      FROM menus
-      WHERE has_discount = TRUE AND discount IS NOT NULL
+      FROM latest_items
       GROUP BY discount
       ORDER BY count DESC
       LIMIT 10
@@ -103,12 +139,22 @@ export async function GET(request: NextRequest) {
 
     // 6. Recent Additions
     const recentAdditions = await query(`
+      WITH latest_items AS (
+        SELECT DISTINCT ON (article_id, vendor_id, "group")
+          vendor_name,
+          "group",
+          article_id,
+          created_at
+        FROM menus
+        WHERE price IS NOT NULL
+        ORDER BY article_id, vendor_id, "group", created_at DESC
+      )
       SELECT 
         vendor_name,
         "group" as category,
         COUNT(*) as item_count,
         MAX(created_at) as last_added
-      FROM menus
+      FROM latest_items
       GROUP BY vendor_name, "group"
       ORDER BY last_added DESC
       LIMIT 10
@@ -116,7 +162,7 @@ export async function GET(request: NextRequest) {
 
     // 7. Top Expensive Items
     const topExpensive = await query(`
-      SELECT 
+      SELECT DISTINCT ON (article_id, vendor_id, "group")
         article_id as name,
         vendor_name,
         "group" as category,
@@ -124,13 +170,13 @@ export async function GET(request: NextRequest) {
         discount
       FROM menus
       WHERE price IS NOT NULL
-      ORDER BY price DESC
+      ORDER BY article_id, vendor_id, "group", created_at DESC, price DESC
       LIMIT 10
     `);
 
     // 8. Most Discounted Items
     const mostDiscounted = await query(`
-      SELECT 
+      SELECT DISTINCT ON (article_id, vendor_id, "group")
         article_id as name,
         vendor_name,
         original_price,
@@ -141,7 +187,7 @@ export async function GET(request: NextRequest) {
         AND original_price IS NOT NULL 
         AND price IS NOT NULL
         AND original_price > 0
-      ORDER BY ((original_price - price) / original_price) DESC
+      ORDER BY article_id, vendor_id, "group", created_at DESC, ((original_price - price) / original_price) DESC
       LIMIT 10
     `);
 

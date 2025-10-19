@@ -1,10 +1,5 @@
-import SnappFoodSearch from '@/components/SnappFoodSearch';
-import ProtectedRoute from '@/components/ProtectedRoute';
+import { redirect } from 'next/navigation';
 
 export default function Home() {
-  return (
-    <ProtectedRoute>
-      <SnappFoodSearch />
-    </ProtectedRoute>
-  );
+  redirect('/statistics');
 }

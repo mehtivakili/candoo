@@ -14,27 +14,27 @@ export default function LoginPage() {
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
   const router = useRouter();
 
-  // Inspirational quotes for the slideshow
+  // Inspirational quotes for management and income
   const quotes = [
     {
-      text: "غذا روح انسان را تغذیه می‌کند",
-      author: "ضرب‌المثل ایرانی"
+      text: "مدیریت موفق، هنر تبدیل چالش‌ها به فرصت‌هاست",
+      author: "پیتر دراکر"
     },
     {
-      text: "بهترین غذا آن است که با عشق پخته شود",
-      author: "شاعر معاصر"
+      text: "درآمد بیشتر از طریق تحلیل دقیق و تصمیم‌گیری هوشمند حاصل می‌شود",
+      author: "وارن بافت"
     },
     {
-      text: "طعم غذا در کنار خانواده دوچندان می‌شود",
-      author: "فرهنگ ایرانی"
+      text: "مدیریت مؤثر یعنی استفاده بهینه از منابع برای حداکثر سود",
+      author: "جک ولش"
     },
     {
-      text: "غذای سالم، زندگی سالم",
-      author: "پزشکان"
+      text: "تحلیل داده‌ها کلید موفقیت در کسب‌وکار مدرن است",
+      author: "بیل گیتس"
     },
     {
-      text: "هر وعده غذایی یک فرصت برای شادی است",
-      author: "فلسفه زندگی"
+      text: "مدیریت هوشمند منجر به رشد درآمد و توسعه پایدار می‌شود",
+      author: "استیو جابز"
     }
   ];
 
@@ -72,7 +72,11 @@ export default function LoginPage() {
         
         // Redirect to the page they were trying to access or home
         const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/';
-        router.push(redirectTo);
+        
+        // Use window.location for more reliable redirect
+        setTimeout(() => {
+          window.location.href = redirectTo;
+        }, 100);
       } else {
         setError(data.error || 'خطا در ورود');
       }

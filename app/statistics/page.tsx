@@ -659,11 +659,11 @@ export default function StatisticsPage() {
   };
 
   const formatNumber = (num: string | number) => {
-    return Number(num).toLocaleString('fa-IR');
+    return Math.round(Number(num)).toLocaleString('fa-IR');
   };
 
   const formatPrice = (price: string | number) => {
-    return Number(price).toLocaleString('fa-IR') + ' تومان';
+    return Math.round(Number(price)).toLocaleString('fa-IR') + ' تومان';
   };
 
   if (isLoading) {
@@ -706,18 +706,21 @@ export default function StatisticsPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
-              <Link
-                href="/"
-                className="p-2 bg-white rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
-              </Link>
               <div>
                 <h1 className="text-3xl font-bold text-gray-800">بررسی آمار پایگاه داده</h1>
                 <p className="text-gray-600 mt-1">تحلیل و آمار پایگاه داده</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {/* Navigation Button */}
+              <Link
+                href="/vendor_management"
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+              >
+                <Store className="w-4 h-4" />
+                مدیریت رستوران‌ها
+              </Link>
+              
               <button
                 onClick={fetchStatistics}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
@@ -1043,29 +1046,23 @@ export default function StatisticsPage() {
               <Store className="w-5 h-5 text-blue-600" />
               محصولات بر اساس رستوران
             </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b-2 border-gray-300 bg-gray-50">
-                    <th className="text-right py-3 px-3 font-bold text-gray-800">رستوران</th>
-                    <th className="text-center py-3 px-3 font-bold text-gray-800">تعداد</th>
-                    <th className="text-right py-3 px-3 font-bold text-gray-800">میانگین قیمت</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.itemsByVendor.slice(0, 10).map((vendor, idx) => (
-                    <tr key={idx} className="border-b hover:bg-blue-50 transition-colors">
-                      <td className="py-3 px-3 text-right text-gray-800 font-medium">{vendor.vendor_name}</td>
-                      <td className="py-3 px-3 text-center font-bold text-blue-700">
-                        {formatNumber(vendor.item_count)}
-                      </td>
-                      <td className="py-3 px-3 text-right text-green-700 font-semibold">
-                        {formatPrice(vendor.avg_price)}
-                      </td>
-                    </tr>
+            <div className="w-full">
+              <div className="w-full">
+                <div className="grid grid-cols-3 gap-4 bg-gray-50 py-3 px-3 rounded-t-lg border-b-2 border-gray-300">
+                  <div className="text-right font-bold text-gray-800">رستوران</div>
+                  <div className="text-center font-bold text-gray-800">تعداد</div>
+                  <div className="text-right font-bold text-gray-800">میانگین قیمت</div>
+                </div>
+                <div className="max-h-96 overflow-y-auto">
+                  {data.itemsByVendor.map((vendor, idx) => (
+                    <div key={idx} className="grid grid-cols-3 gap-4 py-3 px-3 border-b hover:bg-blue-50 transition-colors">
+                      <div className="text-right text-gray-800 font-medium truncate" title={vendor.vendor_name}>{vendor.vendor_name}</div>
+                      <div className="text-center font-bold text-blue-700">{formatNumber(vendor.item_count)}</div>
+                      <div className="text-right text-green-700 font-semibold">{formatPrice(vendor.avg_price)}</div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1075,29 +1072,23 @@ export default function StatisticsPage() {
               <BarChart3 className="w-5 h-5 text-purple-600" />
               محصولات بر اساس دسته‌بندی
             </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b-2 border-gray-300 bg-gray-50">
-                    <th className="text-right py-3 px-3 font-bold text-gray-800">دسته‌بندی</th>
-                    <th className="text-center py-3 px-3 font-bold text-gray-800">تعداد</th>
-                    <th className="text-right py-3 px-3 font-bold text-gray-800">میانگین قیمت</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.itemsByCategory.slice(0, 10).map((category, idx) => (
-                    <tr key={idx} className="border-b hover:bg-purple-50 transition-colors">
-                      <td className="py-3 px-3 text-right text-gray-800 font-medium">{category.category}</td>
-                      <td className="py-3 px-3 text-center font-bold text-purple-700">
-                        {formatNumber(category.item_count)}
-                      </td>
-                      <td className="py-3 px-3 text-right text-green-700 font-semibold">
-                        {formatPrice(category.avg_price)}
-                      </td>
-                    </tr>
+            <div className="w-full">
+              <div className="w-full">
+                <div className="grid grid-cols-3 gap-4 bg-gray-50 py-3 px-3 rounded-t-lg border-b-2 border-gray-300">
+                  <div className="text-right font-bold text-gray-800">دسته‌بندی</div>
+                  <div className="text-center font-bold text-gray-800">تعداد</div>
+                  <div className="text-right font-bold text-gray-800">میانگین قیمت</div>
+                </div>
+                <div className="max-h-96 overflow-y-auto">
+                  {data.itemsByCategory.map((category, idx) => (
+                    <div key={idx} className="grid grid-cols-3 gap-4 py-3 px-3 border-b hover:bg-purple-50 transition-colors">
+                      <div className="text-right text-gray-800 font-medium truncate" title={category.category}>{category.category}</div>
+                      <div className="text-center font-bold text-purple-700">{formatNumber(category.item_count)}</div>
+                      <div className="text-right text-green-700 font-semibold">{formatPrice(category.avg_price)}</div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>
