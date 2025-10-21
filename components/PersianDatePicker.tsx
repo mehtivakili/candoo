@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import PersianDate from 'persian-date';
 
 interface PersianDatePickerProps {
   value: string;
@@ -31,7 +32,6 @@ const PersianDatePicker: React.FC<PersianDatePickerProps> = ({
 
   // Convert Gregorian date to Persian
   const gregorianToPersian = (date: Date) => {
-    const PersianDate = require('persian-date');
     const persianDate = new PersianDate(date);
     return {
       year: persianDate.year(),
@@ -42,21 +42,18 @@ const PersianDatePicker: React.FC<PersianDatePickerProps> = ({
 
   // Convert Persian date to Gregorian
   const persianToGregorian = (year: number, month: number, day: number) => {
-    const PersianDate = require('persian-date');
     const persianDate = new PersianDate([year, month, day]);
     return persianDate.toDate();
   };
 
   // Get days in month
   const getDaysInMonth = (year: number, month: number) => {
-    const PersianDate = require('persian-date');
     const persianDate = new PersianDate([year, month, 1]);
     return persianDate.daysInMonth();
   };
 
   // Get first day of month
   const getFirstDayOfMonth = (year: number, month: number) => {
-    const PersianDate = require('persian-date');
     const persianDate = new PersianDate([year, month, 1]);
     return persianDate.day();
   };
@@ -142,7 +139,6 @@ const PersianDatePicker: React.FC<PersianDatePickerProps> = ({
         selectedDate.day === day;
       
       const isToday = (() => {
-        const PersianDate = require('persian-date');
         const today = new PersianDate();
         return today.year() === currentYear && today.month() === currentMonth && today.date() === day;
       })();
@@ -214,7 +210,6 @@ const PersianDatePicker: React.FC<PersianDatePickerProps> = ({
                 className="px-2 py-1 border border-gray-300 rounded text-sm font-medium text-gray-800 bg-white focus:outline-none focus:border-blue-500"
               >
                 {(() => {
-                  const PersianDate = require('persian-date');
                   const currentPersianYear = new PersianDate().year();
                   const startYear = currentPersianYear - 10; // 10 years before current
                   const endYear = currentPersianYear + 10; // 10 years after current
@@ -257,7 +252,6 @@ const PersianDatePicker: React.FC<PersianDatePickerProps> = ({
           <div className="mt-4 pt-4 border-t border-gray-200 flex gap-2">
             <button
               onClick={() => {
-                const PersianDate = require('persian-date');
                 const today = new PersianDate();
                 setCurrentYear(today.year());
                 setCurrentMonth(today.month());
@@ -269,7 +263,6 @@ const PersianDatePicker: React.FC<PersianDatePickerProps> = ({
             </button>
             <button
               onClick={() => {
-                const PersianDate = require('persian-date');
                 const today = new PersianDate();
                 setCurrentYear(today.year());
                 setCurrentMonth(today.month());

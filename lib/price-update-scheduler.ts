@@ -262,7 +262,7 @@ class PriceUpdateScheduler {
   private async getVendorsToUpdate(vendorIds?: string[]): Promise<Array<{vendor_id: string, vendor_name: string}>> {
     // If specific vendor IDs are provided (manual update), use those
     if (vendorIds && vendorIds.length > 0) {
-      let queryText = `
+      const queryText = `
         SELECT DISTINCT vendor_id, vendor_name
         FROM menus
         WHERE vendor_id = ANY($1)
@@ -288,7 +288,7 @@ class PriceUpdateScheduler {
     
     console.log(`🔄 Found ${activeVendors.length} active vendors for auto-update`);
     
-    let queryText = `
+    const queryText = `
       SELECT DISTINCT vendor_id, vendor_name
       FROM menus
       WHERE vendor_id = ANY($1)

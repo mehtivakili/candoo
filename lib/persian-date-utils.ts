@@ -1,7 +1,8 @@
+import PersianDate from 'persian-date';
+
 // Utility functions for Persian date formatting
 export const formatPersianDate = (dateString: string): string => {
   try {
-    const PersianDate = require('persian-date');
     const date = new Date(dateString);
     const persianDate = new PersianDate(date);
     return persianDate.format('YYYY/MM/DD');
@@ -13,7 +14,6 @@ export const formatPersianDate = (dateString: string): string => {
 
 export const formatPersianDateLong = (dateString: string): string => {
   try {
-    const PersianDate = require('persian-date');
     const date = new Date(dateString);
     const persianDate = new PersianDate(date);
     return persianDate.format('dddd، DD MMMM YYYY');
