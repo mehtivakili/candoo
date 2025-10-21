@@ -13,8 +13,9 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '10');
+    const offset = parseInt(searchParams.get('offset') || '0');
 
-    // Top Expensive Items with proper sorting
+    // Top Expensive Items with proper sorting and pagination
     const topExpensive = await query(`
       WITH latest_items AS (
         SELECT DISTINCT ON (article_id, vendor_id, "group")
@@ -37,8 +38,8 @@ export async function GET(request: NextRequest) {
         original_price
       FROM latest_items
       ORDER BY price DESC
-      LIMIT $1
-    `, [limit]);
+      LIMIT $1 OFFSET $2
+    `, [limit, offset]);
 
     return NextResponse.json({
       success: true,

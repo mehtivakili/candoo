@@ -7,6 +7,8 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/lib/auth';
 import PersianDatePicker from '@/components/PersianDatePicker';
 import { formatPersianDate } from '@/lib/persian-date-utils';
+import * as XLSX from 'xlsx';
+import PersianDate from 'persian-date';
 
 interface GeneralStats {
   total_items: string;
@@ -153,6 +155,12 @@ export default function StatisticsPage() {
   const [isLoadingExpensive, setIsLoadingExpensive] = useState(false);
   const [isLoadingDiscounted, setIsLoadingDiscounted] = useState(false);
   
+  // Pagination state
+  const [expensivePage, setExpensivePage] = useState(1);
+  const [discountedPage, setDiscountedPage] = useState(1);
+  const [hasMoreExpensive, setHasMoreExpensive] = useState(true);
+  const [hasMoreDiscounted, setHasMoreDiscounted] = useState(true);
+  
   // Price trend states
   const [trendData, setTrendData] = useState<PriceTrendData[]>([]);
   const [trendFilters, setTrendFilters] = useState<TrendFilters>({ vendors: [], groups: [], items: [] });
@@ -196,6 +204,7 @@ export default function StatisticsPage() {
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
   const [filterName, setFilterName] = useState('');
   const [isSavingFilter, setIsSavingFilter] = useState(false);
+  const [isCreatingFilter, setIsCreatingFilter] = useState(false);
 
   // Comparison states
   const [comparisonItems, setComparisonItems] = useState<ComparisonItem[]>([]);
@@ -356,11 +365,21 @@ export default function StatisticsPage() {
   const fetchMoreExpensive = async () => {
     try {
       setIsLoadingExpensive(true);
-      const response = await fetch('/api/statistics/expensive?limit=100');
+      const response = await fetch(`/api/statistics/expensive?limit=10&offset=${(expensivePage - 1) * 10}`);
       const result = await response.json();
 
       if (result.success) {
-        setExpandedExpensive(result.data);
+        if (expensivePage === 1) {
+          // First page - replace data
+          setExpandedExpensive(result.data);
+        } else {
+          // Subsequent pages - append data
+          setExpandedExpensive(prev => [...prev, ...result.data]);
+        }
+        
+        // Check if there's more data
+        setHasMoreExpensive(result.data.length === 10);
+        setExpensivePage(prev => prev + 1);
       } else {
         console.error('❌ Error fetching more expensive items:', result.error);
       }
@@ -375,11 +394,21 @@ export default function StatisticsPage() {
   const fetchMoreDiscounted = async () => {
     try {
       setIsLoadingDiscounted(true);
-      const response = await fetch('/api/statistics/discounted?limit=100');
+      const response = await fetch(`/api/statistics/discounted?limit=10&offset=${(discountedPage - 1) * 10}`);
       const result = await response.json();
 
       if (result.success) {
-        setExpandedDiscounted(result.data);
+        if (discountedPage === 1) {
+          // First page - replace data
+          setExpandedDiscounted(result.data);
+        } else {
+          // Subsequent pages - append data
+          setExpandedDiscounted(prev => [...prev, ...result.data]);
+        }
+        
+        // Check if there's more data
+        setHasMoreDiscounted(result.data.length === 10);
+        setDiscountedPage(prev => prev + 1);
       } else {
         console.error('❌ Error fetching more discounted items:', result.error);
       }
@@ -387,6 +416,235 @@ export default function StatisticsPage() {
       console.error('❌ Error fetching more discounted items:', err);
     } finally {
       setIsLoadingDiscounted(false);
+    }
+  };
+
+  // Export functions
+  // Export individual price trend filter
+  const exportPriceTrendFilterToExcel = async (filter: SavedFilter) => {
+    try {
+      // Apply the filter temporarily to get the data
+      const originalFromDate = fromDate;
+      const originalToDate = toDate;
+      const originalSelectedVendor = selectedVendor;
+      const originalSelectedGroup = selectedGroup;
+      const originalSelectedItem = selectedItem;
+      
+      // Set filter values
+      setFromDate(filter.from_date || '');
+      setToDate(filter.to_date || '');
+      setSelectedVendor(filter.vendor || 'all');
+      setSelectedGroup(filter.category || 'all');
+      setSelectedItem(filter.item || 'all');
+      
+      // Wait a bit for state to update, then fetch data
+      setTimeout(async () => {
+        try {
+          const params = new URLSearchParams();
+          if (filter.from_date) params.append('from_date', filter.from_date);
+          if (filter.to_date) params.append('to_date', filter.to_date);
+          if (filter.vendor && filter.vendor !== 'all') params.append('vendor_name', filter.vendor);
+          if (filter.category && filter.category !== 'all') params.append('group', filter.category);
+          if (filter.item && filter.item !== 'all') params.append('article_id', filter.item);
+
+          const response = await fetch(`/api/price-trends?${params.toString()}`);
+          const result = await response.json();
+
+          if (result.success && result.data.length > 0) {
+            // Create filename with current date
+            const now = new Date();
+            const persianDate = new PersianDate(now);
+            const dateStr = persianDate.format('YYYY-MM-DD_HH-mm-ss');
+            const filename = `روند_قیمت_${filter.name}_${dateStr}.xlsx`;
+
+            // Prepare data for Excel
+            const excelData = [];
+            
+            // First row: Product info
+            excelData.push([
+              'نام محصول',
+              'دسته‌بندی',
+              'فروشنده'
+            ]);
+            excelData.push([
+              filter.item || 'همه محصولات',
+              filter.category || 'همه دسته‌ها',
+              filter.vendor || 'همه فروشندگان'
+            ]);
+            
+            // Empty row
+            excelData.push([]);
+            
+            // Headers for time series data
+            excelData.push([
+              'ردیف',
+              'تاریخ و زمان',
+              'قیمت با تخفیف',
+              'قیمت اصلی'
+            ]);
+            
+            // Time series data
+            result.data.forEach((item: any, index: number) => {
+              const date = new Date(item.date);
+              const persianDateTime = new PersianDate(date);
+              const formattedDateTime = persianDateTime.format('HH:mm - DD/MM/YYYY');
+              
+              excelData.push([
+                index + 1,
+                formattedDateTime,
+                item.avg_price,
+                item.avg_original_price || item.avg_price
+              ]);
+            });
+
+            // Create workbook and worksheet
+            const ws = XLSX.utils.aoa_to_sheet(excelData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'روند قیمت');
+
+            // Download file
+            XLSX.writeFile(wb, filename);
+          } else {
+            alert('هیچ داده‌ای برای این فیلتر وجود ندارد');
+          }
+        } catch (error) {
+          console.error('❌ Error fetching filter data:', error);
+          alert('خطا در دریافت داده‌های فیلتر');
+        } finally {
+          // Restore original values
+          setFromDate(originalFromDate);
+          setToDate(originalToDate);
+          setSelectedVendor(originalSelectedVendor);
+          setSelectedGroup(originalSelectedGroup);
+          setSelectedItem(originalSelectedItem);
+        }
+      }, 100);
+      
+    } catch (error) {
+      console.error('❌ Error exporting price trend filter:', error);
+      alert('خطا در صادرات فایل اکسل');
+    }
+  };
+
+  const exportPriceTrendsToExcel = async () => {
+    try {
+      if (!trendData || trendData.length === 0) {
+        alert('هیچ داده‌ای برای صادرات وجود ندارد');
+        return;
+      }
+
+      // Get current filter values for filename
+      const vendorName = selectedVendor !== 'all' ? selectedVendor : 'همه فروشندگان';
+      const groupName = selectedGroup !== 'all' ? selectedGroup : 'همه دسته‌ها';
+      const itemName = selectedItem !== 'all' ? selectedItem : 'همه محصولات';
+      
+      // Create filename with current date
+      const now = new Date();
+      const persianDate = new PersianDate(now);
+      const dateStr = persianDate.format('YYYY-MM-DD_HH-mm-ss');
+      const filename = `روند_قیمت_${itemName}_${groupName}_${vendorName}_${dateStr}.xlsx`;
+
+      // Prepare data for Excel
+      const excelData = [];
+      
+      // First row: Product info
+      excelData.push([
+        'نام محصول',
+        'دسته‌بندی',
+        'فروشنده'
+      ]);
+      excelData.push([
+        itemName,
+        groupName,
+        vendorName
+      ]);
+      
+      // Empty row
+      excelData.push([]);
+      
+      // Headers for time series data
+      excelData.push([
+        'ردیف',
+        'تاریخ و زمان',
+        'قیمت با تخفیف',
+        'قیمت اصلی'
+      ]);
+      
+      // Time series data
+      trendData.forEach((item, index) => {
+        const date = new Date(item.date);
+        const persianDateTime = new PersianDate(date);
+        const formattedDateTime = persianDateTime.format('HH:mm - DD/MM/YYYY');
+        
+        excelData.push([
+          index + 1,
+          formattedDateTime,
+          item.avg_price,
+          item.avg_original_price || item.avg_price
+        ]);
+      });
+
+      // Create workbook and worksheet
+      const ws = XLSX.utils.aoa_to_sheet(excelData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'روند قیمت');
+
+      // Download file
+      XLSX.writeFile(wb, filename);
+      
+    } catch (error) {
+      console.error('❌ Error exporting price trends:', error);
+      alert('خطا در صادرات فایل اکسل');
+    }
+  };
+
+  const exportComparisonToExcel = async (comparison: ComparisonFilter) => {
+    try {
+      if (!comparison.items || comparison.items.length === 0) {
+        alert('هیچ داده‌ای برای صادرات وجود ندارد');
+        return;
+      }
+
+      // Create filename with current date
+      const now = new Date();
+      const persianDate = new PersianDate(now);
+      const dateStr = persianDate.format('YYYY-MM-DD_HH-mm-ss');
+      const filename = `مقایسه_قیمت_${comparison.name}_${dateStr}.xlsx`;
+
+      // Prepare data for Excel
+      const excelData = [];
+      
+      // Headers
+      excelData.push([
+        'نام محصول',
+        'دسته‌بندی',
+        'فروشنده',
+        'قیمت',
+        'قیمت با تخفیف'
+      ]);
+      
+      // Data rows
+      comparison.items.forEach((item) => {
+        excelData.push([
+          item.article_id,
+          '', // category - not available in ComparisonItem
+          item.vendor_name,
+          item.original_price || item.price,
+          item.price
+        ]);
+      });
+
+      // Create workbook and worksheet
+      const ws = XLSX.utils.aoa_to_sheet(excelData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'مقایسه قیمت');
+
+      // Download file
+      XLSX.writeFile(wb, filename);
+      
+    } catch (error) {
+      console.error('❌ Error exporting comparison:', error);
+      alert('خطا در صادرات فایل اکسل');
     }
   };
 
@@ -406,7 +664,11 @@ export default function StatisticsPage() {
       const result = await response.json();
 
       if (result.success) {
-        setTrendData(result.data);
+        // Ensure data is sorted by date in ascending order
+        const sortedData = result.data.sort((a: any, b: any) => 
+          new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+        setTrendData(sortedData);
         setTrendFilters(result.filters);
         
         // If no data with current filters, try without date filters to see what's available
@@ -773,6 +1035,7 @@ export default function StatisticsPage() {
       if (result.success) {
         alert(result.message);
         setFilterName('');
+        setIsCreatingFilter(false);
         fetchSavedFilters();
       } else {
         alert(`خطا: ${result.error}`);
@@ -1619,18 +1882,24 @@ export default function StatisticsPage() {
                 </div>
 
                 {/* X-axis labels (dates) */}
-                <div className="ml-20 mr-4 mt-2 flex justify-between text-xs text-gray-600">
+                <div className="ml-20 mr-4 mt-2 flex justify-between text-xs text-gray-600" dir="ltr">
                   {trendData.length > 0 && (() => {
+                    // Data is already sorted in fetchPriceTrends, but ensure it's correct
                     const sortedData = [...trendData].sort((a, b) => 
                       new Date(a.date).getTime() - new Date(b.date).getTime()
                     );
+                    
+                    const firstDate = formatPersianDate(sortedData[0].date);
+                    const middleDate = sortedData.length > 2 ? formatPersianDate(sortedData[Math.floor(sortedData.length / 2)].date) : '';
+                    const lastDate = formatPersianDate(sortedData[sortedData.length - 1].date);
+                    
                     return (
                       <>
-                        <span>{formatPersianDate(sortedData[0].date)}</span>
+                        <span>{firstDate}</span>
                         {sortedData.length > 2 && (
-                          <span>{formatPersianDate(sortedData[Math.floor(sortedData.length / 2)].date)}</span>
+                          <span>{middleDate}</span>
                         )}
-                        <span>{formatPersianDate(sortedData[sortedData.length - 1].date)}</span>
+                        <span>{lastDate}</span>
                       </>
                     );
                   })()}
@@ -1677,56 +1946,56 @@ export default function StatisticsPage() {
                   فیلترهای ذخیره شده
                 </h3>
 
-                {/* Save Current Filter */}
-                <div className="mb-4 p-3 bg-white rounded-lg border border-blue-300">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">نام فیلتر</label>
+                {/* Add New Filter Button */}
+                {!isCreatingFilter && (
+                  <div className="mb-4 text-center">
                     <button
-                      onClick={async () => {
-                        setFilterName('');
-                        // Reset to earliest available date
-                        try {
-                          const response = await fetch('/api/price-trends?earliest=true');
-                          const result = await response.json();
-                          if (result.success && result.earliestDate) {
-                            setFromDate(result.earliestDate.split('T')[0]);
-                          } else {
-                            setFromDate(new Date().toISOString().split('T')[0]);
-                          }
-                        } catch (error) {
-                          setFromDate(new Date().toISOString().split('T')[0]);
-                        }
-                        setToDate(new Date().toISOString().split('T')[0]);
-                        setSelectedVendor('all');
-                        setSelectedGroup('all');
-                        setSelectedItem('all');
-                      }}
-                      className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                      onClick={() => setIsCreatingFilter(true)}
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 font-medium transition-colors"
                     >
-                      <Plus className="w-3 h-3" />
+                      <Plus className="w-4 h-4" />
                       افزودن فیلتر جدید
                     </button>
                   </div>
-                  <input
-                    type="text"
-                    value={filterName}
-                    onChange={(e) => setFilterName(e.target.value)}
-                    placeholder="نام فیلتر را وارد کنید..."
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-gray-800 mb-2"
-                  />
-                  <button
-                    onClick={saveCurrentFilter}
-                    disabled={isSavingFilter || !filterName.trim()}
-                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium transition-colors"
-                  >
-                    {isSavingFilter ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Save className="w-4 h-4" />
-                    )}
-                    اضافه کردن
-                  </button>
-                </div>
+                )}
+
+                {/* Filter Creation Form */}
+                {isCreatingFilter && (
+                  <div className="mb-4 p-3 bg-white rounded-lg border border-blue-300">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">نام فیلتر</label>
+                      <button
+                        onClick={() => {
+                          setIsCreatingFilter(false);
+                          setFilterName('');
+                        }}
+                        className="text-xs text-red-600 hover:text-red-800 flex items-center gap-1"
+                      >
+                        <X className="w-3 h-3" />
+                        لغو
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={filterName}
+                      onChange={(e) => setFilterName(e.target.value)}
+                      placeholder="نام فیلتر را وارد کنید..."
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-gray-800 mb-2"
+                    />
+                    <button
+                      onClick={saveCurrentFilter}
+                      disabled={isSavingFilter || !filterName.trim()}
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium transition-colors"
+                    >
+                      {isSavingFilter ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4" />
+                      )}
+                      اضافه کردن
+                    </button>
+                  </div>
+                )}
 
                 {/* Saved Filters List */}
                 <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -1756,16 +2025,28 @@ export default function StatisticsPage() {
                               {filter.item && <p>محصول: {filter.item}</p>}
                             </div>
                           </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteSavedFilter(filter.id);
-                            }}
-                            className="text-red-500 hover:text-red-700 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="حذف فیلتر"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                exportPriceTrendFilterToExcel(filter);
+                              }}
+                              className="text-green-600 hover:text-green-800 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="دانلود اکسل"
+                            >
+                              <Database className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteSavedFilter(filter.id);
+                              }}
+                              className="text-red-500 hover:text-red-700 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="حذف فیلتر"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))
@@ -2155,15 +2436,28 @@ export default function StatisticsPage() {
                               ({filter.items.length} آیتم)
                             </span>
                           </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteComparisonFilter(filter.id);
-                            }}
-                            className="text-red-600 hover:text-red-800 p-1"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                exportComparisonToExcel(filter);
+                              }}
+                              className="text-green-600 hover:text-green-800 p-1"
+                              title="دانلود اکسل"
+                            >
+                              <Database className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteComparisonFilter(filter.id);
+                              }}
+                              className="text-red-600 hover:text-red-800 p-1"
+                              title="حذف فیلتر"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -2183,7 +2477,7 @@ export default function StatisticsPage() {
               <TrendingUp className="w-5 h-5 text-red-600" />
               گران‌ترین محصولات
             </h2>
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-96 overflow-y-auto">
               {(expandedExpensive.length > 0 ? expandedExpensive : data.topExpensive.slice(0, 5)).map((item, idx) => (
                 <div key={idx} className="border-b-2 border-gray-200 pb-3 last:border-0 hover:bg-red-50 p-2 rounded transition-colors">
                   <p className="font-bold text-gray-900 text-base">{item.name}</p>
@@ -2196,7 +2490,7 @@ export default function StatisticsPage() {
             </div>
             
             {/* Show More Button for Expensive Items */}
-            {expandedExpensive.length === 0 && (
+            {hasMoreExpensive && (
               <div className="mt-4 text-center">
                 <button
                   onClick={fetchMoreExpensive}
@@ -2215,12 +2509,16 @@ export default function StatisticsPage() {
               </div>
             )}
             
-            {/* Show Less Button for Expensive Items */}
+            {/* Reset Button for Expensive Items */}
             {expandedExpensive.length > 0 && (
-              <div className="mt-4 text-center">
+              <div className="mt-2 text-center">
                 <button
-                  onClick={() => setExpandedExpensive([])}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                  onClick={() => {
+                    setExpandedExpensive([]);
+                    setExpensivePage(1);
+                    setHasMoreExpensive(true);
+                  }}
+                  className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700"
                 >
                   نمایش کمتر
                 </button>
@@ -2234,7 +2532,7 @@ export default function StatisticsPage() {
               <Percent className="w-5 h-5 text-green-600" />
               بیشترین تخفیف‌ها
             </h2>
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-96 overflow-y-auto">
               {(expandedDiscounted.length > 0 ? expandedDiscounted : data.mostDiscounted.slice(0, 5)).map((item, idx) => (
                 <div key={idx} className="border-b-2 border-gray-200 pb-3 last:border-0 hover:bg-green-50 p-2 rounded transition-colors">
                   <p className="font-bold text-gray-900 text-base">{item.name}</p>
@@ -2257,7 +2555,7 @@ export default function StatisticsPage() {
             </div>
             
             {/* Show More Button for Discounted Items */}
-            {expandedDiscounted.length === 0 && (
+            {hasMoreDiscounted && (
               <div className="mt-4 text-center">
                 <button
                   onClick={fetchMoreDiscounted}
@@ -2276,12 +2574,16 @@ export default function StatisticsPage() {
               </div>
             )}
             
-            {/* Show Less Button for Discounted Items */}
+            {/* Reset Button for Discounted Items */}
             {expandedDiscounted.length > 0 && (
-              <div className="mt-4 text-center">
+              <div className="mt-2 text-center">
                 <button
-                  onClick={() => setExpandedDiscounted([])}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                  onClick={() => {
+                    setExpandedDiscounted([]);
+                    setDiscountedPage(1);
+                    setHasMoreDiscounted(true);
+                  }}
+                  className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700"
                 >
                   نمایش کمتر
                 </button>

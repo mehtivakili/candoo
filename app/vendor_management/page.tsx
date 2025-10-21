@@ -89,10 +89,6 @@ interface UpdateSession {
   }>;
 }
 
-interface BrowserStatus {
-  isOpen: boolean;
-  sessionId: string;
-}
 
 // Scraping interfaces
 interface SearchResult {
@@ -217,10 +213,6 @@ export default function VendorManagement() {
   const [isAddingUrl, setIsAddingUrl] = useState(false);
   const [savingVendorId, setSavingVendorId] = useState<string | null>(null);
 
-  // Browser status states
-  const [browserStatus, setBrowserStatus] = useState<BrowserStatus>({ isOpen: false, sessionId: 'no-session' });
-  const [isClosingBrowser, setIsClosingBrowser] = useState(false);
-
   const automationModes: AutomationMode[] = [
     {
       id: 'products',
@@ -310,11 +302,7 @@ export default function VendorManagement() {
       addLog(`🖱️ Will click "مشاهده همه فروشندگان" to get all vendors`);
     }
     
-    if (browserStatus.isOpen) {
-      addLog(`✅ Reusing existing browser instance (Session: ${browserStatus.sessionId})`);
-    } else {
-      addLog(`🔄 Starting new browser instance...`);
-    }
+    addLog(`🔄 Starting browser instance...`);
 
     try {
       const requestBody: any = {
@@ -362,8 +350,6 @@ export default function VendorManagement() {
           addLog(`🎯 Recommended elements identified`);
         }
         
-        // Refresh browser status after successful search
-        await checkBrowserStatus();
       } else {
         addLog(`❌ Search failed: ${data.message}`);
       }
@@ -445,9 +431,6 @@ export default function VendorManagement() {
         addLog(`✅ ${saveData.message}`);
         alert(`✅ موفق!\n\n${saveData.message}\n\nرستوران: ${saveData.data?.vendorName}\nتعداد دسته‌بندی: ${saveData.data?.categoriesCount}\nتعداد کل محصولات: ${saveData.data?.totalItems}`);
         setDirectUrl('');
-        
-        // Keep browser alive for next operation
-        addLog('🔄 Browser kept alive for next operation');
       } else {
         throw new Error(saveData.error || 'Failed to save menu');
       }
@@ -520,9 +503,6 @@ export default function VendorManagement() {
       if (saveData.success) {
         addLog(`✅ ${saveData.message}`);
         alert(`✅ موفق!\n\nرستوران با موفقیت به پایگاه داده اضافه شد\n\n${saveData.message}\n\nرستوران: ${saveData.data?.vendorName}\nتعداد دسته‌بندی: ${saveData.data?.categoriesCount}\nتعداد کل محصولات: ${saveData.data?.totalItems}`);
-        
-        // Keep browser alive for next operation
-        addLog('🔄 Browser kept alive for next operation');
       } else {
         throw new Error(saveData.error || 'Failed to save menu');
       }
@@ -975,65 +955,6 @@ export default function VendorManagement() {
     }
   };
 
-  const checkBrowserStatus = async () => {
-    try {
-      const response = await fetch('/api/sophisticated-automation');
-      
-      if (!response.ok) {
-        console.error('Browser status check failed:', response.status);
-        return;
-      }
-      
-      const text = await response.text();
-      
-      if (!text || text.trim() === '') {
-        console.error('Browser status response is empty');
-        return;
-      }
-      
-      const data = JSON.parse(text);
-      setBrowserStatus(data.browserStatus || { isOpen: false, sessionId: 'no-session' });
-    } catch (error) {
-      console.error('Failed to check browser status:', error);
-      setBrowserStatus({ isOpen: false, sessionId: 'no-session' });
-    }
-  };
-
-  const closeBrowser = async () => {
-    setIsClosingBrowser(true);
-    addLog('🔒 Closing browser instance...');
-    
-    try {
-      const response = await fetch('/api/sophisticated-automation', {
-        method: 'DELETE'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const text = await response.text();
-      if (!text || text.trim() === '') {
-        throw new Error('Empty response from server');
-      }
-      
-      const data = JSON.parse(text);
-      
-      if (data.success) {
-        addLog('✅ Browser closed successfully');
-        setBrowserStatus({ isOpen: false, sessionId: 'no-session' });
-      } else {
-        addLog(`❌ Failed to close browser: ${data.message || 'Unknown error'}`);
-      }
-    } catch (error) {
-      console.error('Error closing browser:', error);
-      addLog(`❌ Error closing browser: ${error instanceof Error ? error.message : String(error)}`);
-      setBrowserStatus({ isOpen: false, sessionId: 'no-session' });
-    } finally {
-      setIsClosingBrowser(false);
-    }
-  };
-
   const clearStuckStatuses = () => {
     setUpdatingVendors(new Set());
     setCompletedVendors(new Set());
@@ -1044,7 +965,6 @@ export default function VendorManagement() {
     loadVendors();
     loadConfig();
     loadSessionStatus();
-    checkBrowserStatus();
     checkSchedulerStatus();
     
     // Clear any stuck statuses on load
@@ -1125,20 +1045,6 @@ export default function VendorManagement() {
                 </Link>
               </div>
               
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Monitor className="w-4 h-4" />
-                <span>Browser: {browserStatus.isOpen ? '🟢 Active' : '🔴 Inactive'}</span>
-              </div>
-              {browserStatus.isOpen && (
-                <button
-                  onClick={closeBrowser}
-                  disabled={isClosingBrowser}
-                  className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 text-sm flex items-center gap-1"
-                >
-                  {isClosingBrowser ? <Loader2 className="w-3 h-3 animate-spin" /> : <Power className="w-3 h-3" />}
-                  Close Browser
-                </button>
-              )}
             </div>
           </div>
         </div>
