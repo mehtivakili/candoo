@@ -7,39 +7,26 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import PriceUpdateScheduler from '@/lib/price-update-scheduler';
+import ConfigManager from '@/lib/config-manager';
 
 export async function GET(request: NextRequest) {
   try {
     console.log('⚙️ Loading scheduler configuration...');
     
-    const scheduler = PriceUpdateScheduler.getInstance();
-    const config = scheduler.getConfig();
-    
-    // Convert cron schedule to days and time
-    const cronSchedule = config.schedule;
-    let days: string[] = [];
-    let hour = 6;
-    let minute = 0;
-    
-    // Parse cron expression (simplified for daily schedules)
-    if (cronSchedule.includes('* * *')) {
-      // Daily schedule - extract time
-      const parts = cronSchedule.split(' ');
-      if (parts.length >= 2) {
-        minute = parseInt(parts[0]) || 0;
-        hour = parseInt(parts[1]) || 6;
-      }
-      days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-    }
+    // Load configuration from file system instead of scheduler's in-memory config
+    const configManager = ConfigManager.getInstance();
+    const fileConfig = await configManager.loadConfig();
     
     const configData = {
-      enabled: config.enabled,
-      days,
-      hour,
-      minute,
-      maxVendorsPerRun: config.maxVendorsPerRun,
-      delayBetweenVendors: config.delayBetweenVendors
+      enabled: fileConfig.global_enabled,
+      days: fileConfig.schedule.days || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+      hour: fileConfig.schedule.hour || 6,
+      minute: fileConfig.schedule.minute || 0,
+      maxVendorsPerRun: fileConfig.batch_settings.max_vendors_per_run || 50,
+      delayBetweenVendors: fileConfig.batch_settings.delay_between_vendors || 5000
     };
+    
+    console.log('📋 Loaded configuration from file:', configData);
     
     return NextResponse.json({
       success: true,
@@ -106,6 +93,36 @@ export async function PUT(request: NextRequest) {
     };
     
     scheduler.updateConfig(schedulerConfig);
+    
+    // Also save to file system using ConfigManager
+    const configManager = ConfigManager.getInstance();
+    
+    // Load existing config to preserve vendor settings
+    const existingConfig = await configManager.loadConfig();
+    
+    const fileConfig = {
+      global_enabled: config.enabled || false,
+      schedule: {
+        days: config.days || [],
+        hour: config.hour || 6,
+        minute: config.minute || 0
+      },
+      batch_settings: {
+        max_vendors_per_run: config.maxVendorsPerRun || 50,
+        delay_between_vendors: config.delayBetweenVendors || 5000,
+        retry_attempts: 3,
+        timeout: 60000
+      },
+      vendor_settings: existingConfig.vendor_settings || {
+        active_vendors: [],
+        inactive_vendors: [],
+        auto_update_enabled_count: 0,
+        total_vendors_count: 0
+      },
+      last_config_update: new Date().toISOString()
+    };
+    
+    await configManager.saveConfig(fileConfig);
     
     return NextResponse.json({
       success: true,

@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
         vendor_id,
         vendor_name,
         MAX(updated_at) as last_update,
+        MIN(created_at) as first_added,
         COUNT(DISTINCT CONCAT(article_id, '|', COALESCE("group", ''))) as total_items,
         COUNT(CASE WHEN updated_at > NOW() - INTERVAL '1 day' THEN 1 END) as recent_updates,
         CASE 
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
       FROM menus
       WHERE vendor_id IS NOT NULL AND vendor_id != ''
       GROUP BY vendor_id, vendor_name
-      ORDER BY MAX(updated_at) DESC, vendor_name
+      ORDER BY MIN(created_at) ASC
     `;
     
     const result = await query(vendorsQuery);
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
         vendor_id: row.vendor_id,
         vendor_name: row.vendor_name,
         last_updated: row.last_update, // Real latest update from database
+        first_added: row.first_added, // When vendor was first discovered
         total_items: parseInt(row.total_items),
         recent_updates: parseInt(row.recent_updates), // Items updated in last 24h
         status: row.status,

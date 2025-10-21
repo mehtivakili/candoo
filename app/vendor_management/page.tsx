@@ -63,6 +63,7 @@ interface Vendor {
   recent_updates?: number; // Items updated in last 24h
   auto_update_enabled: boolean;
   last_updated: string;
+  first_added?: string; // When vendor was first discovered
   status?: string; // active, inactive, stale
 }
 
@@ -191,6 +192,8 @@ export default function VendorManagement() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isSchedulerRunning, setIsSchedulerRunning] = useState(false);
+  const [togglingVendors, setTogglingVendors] = useState<Set<string>>(new Set());
   const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
   const [updatingVendors, setUpdatingVendors] = useState<Set<string>>(new Set());
   const [completedVendors, setCompletedVendors] = useState<Set<string>>(new Set());
@@ -553,6 +556,14 @@ export default function VendorManagement() {
     }
   };
 
+  const updateVendorInList = (vendorId: string, updates: Partial<Vendor>) => {
+    setVendors(prev => prev.map(vendor => 
+      vendor.vendor_id === vendorId 
+        ? { ...vendor, ...updates }
+        : vendor
+    ));
+  };
+
   const loadConfig = async () => {
     try {
       const response = await fetch('/api/price-update/config');
@@ -604,6 +615,74 @@ export default function VendorManagement() {
     }
   };
 
+  const checkSchedulerStatus = async () => {
+    try {
+      const response = await fetch('/api/price-update');
+      const data = await response.json();
+      
+      if (data.success && data.scheduler) {
+        const wasRunning = isSchedulerRunning;
+        const isRunning = data.scheduler.isPriceUpdateRunning || false;
+        
+        setIsSchedulerRunning(isRunning);
+        
+        // If scheduler just finished running, refresh vendor data
+        if (wasRunning && !isRunning) {
+          console.log('🔄 Scheduler finished, refreshing vendor data...');
+          await loadVendors();
+          // Clear all status indicators when scheduler finishes
+          setUpdatingVendors(new Set());
+          setCompletedVendors(new Set());
+        }
+        
+        // If scheduler is running, check for current session
+        if (isRunning && data.scheduler.currentSession) {
+          const session = data.scheduler.currentSession;
+          
+          // Track currently processing vendor
+          const updatingIds = new Set<string>();
+          const completedIds = new Set<string>();
+          
+          // Add current vendor being processed
+          if (session.currentVendor) {
+            // Find vendor ID by name
+            const currentVendor = vendors.find(v => v.vendor_name === session.currentVendor);
+            if (currentVendor) {
+              updatingIds.add(currentVendor.vendor_id);
+            }
+          }
+          
+          // Process completed results
+          if (session.results) {
+            session.results.forEach((result: any) => {
+              if (result.success) {
+                completedIds.add(result.vendorId);
+                // Remove from updating if it was there
+                updatingIds.delete(result.vendorId);
+              }
+              // Failed vendors are not shown as updating or completed
+            });
+          }
+          
+          console.log('🔄 Updating vendor status:', {
+            updating: Array.from(updatingIds),
+            completed: Array.from(completedIds),
+            currentVendor: session.currentVendor
+          });
+          
+          setUpdatingVendors(updatingIds);
+          setCompletedVendors(completedIds);
+        } else {
+          // Clear status when scheduler is not running
+          setUpdatingVendors(new Set());
+          setCompletedVendors(new Set());
+        }
+      }
+    } catch (err) {
+      console.error('Failed to check scheduler status:', err);
+    }
+  };
+
   const updateConfig = async () => {
     setIsLoading(true);
     setError(null);
@@ -611,9 +690,9 @@ export default function VendorManagement() {
 
     try {
       const response = await fetch('/api/price-update/config', {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
+        body: JSON.stringify({ config }),
       });
 
       const data = await response.json();
@@ -768,26 +847,50 @@ export default function VendorManagement() {
   };
 
   const toggleVendorAutoUpdate = async (vendorId: string, enabled: boolean) => {
+    // Add to toggling set
+    setTogglingVendors(prev => new Set(prev).add(vendorId));
+    
+    // Optimistic UI update - change immediately
+    setVendors(prev => prev.map(vendor => 
+      vendor.vendor_id === vendorId 
+        ? { ...vendor, auto_update_enabled: enabled }
+        : vendor
+    ));
+
     try {
       const response = await fetch('/api/price-update/vendor-toggle', {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vendorId, enabled }),
       });
 
       const data = await response.json();
       if (data.success) {
-        setVendors(prev => prev.map(vendor => 
-          vendor.vendor_id === vendorId 
-            ? { ...vendor, auto_update_enabled: enabled }
-            : vendor
-        ));
         setSuccess(`به‌روزرسانی خودکار ${enabled ? 'فعال' : 'غیرفعال'} شد`);
       } else {
+        // Revert the optimistic update on error
+        setVendors(prev => prev.map(vendor => 
+          vendor.vendor_id === vendorId 
+            ? { ...vendor, auto_update_enabled: !enabled }
+            : vendor
+        ));
         setError(data.message);
       }
     } catch (err) {
+      // Revert the optimistic update on error
+      setVendors(prev => prev.map(vendor => 
+        vendor.vendor_id === vendorId 
+          ? { ...vendor, auto_update_enabled: !enabled }
+          : vendor
+      ));
       setError('خطا در تغییر وضعیت به‌روزرسانی خودکار');
+    } finally {
+      // Remove from toggling set
+      setTogglingVendors(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(vendorId);
+        return newSet;
+      });
     }
   };
 
@@ -949,6 +1052,7 @@ export default function VendorManagement() {
     loadConfig();
     loadSessionStatus();
     checkBrowserStatus();
+    checkSchedulerStatus();
     
     // Clear any stuck statuses on load
     setUpdatingVendors(new Set());
@@ -961,12 +1065,41 @@ export default function VendorManagement() {
 
     const interval = setInterval(async () => {
       await loadSessionStatus();
+      await checkSchedulerStatus();
     }, 2000);
 
     return () => {
       if (interval) clearInterval(interval);
     };
   }, [currentSession?.status]);
+
+  // Poll for scheduler status when no session is running
+  useEffect(() => {
+    if (currentSession) return;
+
+    const interval = setInterval(async () => {
+      await checkSchedulerStatus();
+    }, 3000); // More frequent polling
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [currentSession]);
+
+  // Additional polling when scheduler is running to catch real-time updates
+  useEffect(() => {
+    if (!isSchedulerRunning) return;
+
+    const interval = setInterval(async () => {
+      await checkSchedulerStatus();
+      // Also refresh vendor data periodically during scheduler runs
+      await loadVendors();
+    }, 10000); // Every 10 seconds during scheduler runs
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isSchedulerRunning]);
 
   const toggleDay = (day: string) => {
     setConfig(prev => ({
@@ -1098,10 +1231,18 @@ export default function VendorManagement() {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
               <div className="bg-gradient-to-r from-green-600 to-blue-600 px-6 py-4">
-                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  تنظیمات برنامه‌ریز
-                </h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+                    <Settings className="w-5 h-5" />
+                    تنظیمات برنامه‌ریز
+                  </h2>
+                  {isSchedulerRunning && (
+                    <div className="flex items-center gap-2 text-white">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm font-medium">درحال به روز رسانی</span>
+                    </div>
+                  )}
+                </div>
               </div>
           <div className="p-6 space-y-6">
             {/* Enable/Disable Toggle */}
@@ -1292,17 +1433,11 @@ export default function VendorManagement() {
 
                 return (
                   <div key={vendor.vendor_id} className="bg-gray-50 rounded-lg border border-gray-200">
-                    <div 
-                      className="p-4 cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => toggleVendorExpansion(vendor.vendor_id)}
-                    >
+                    <div className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleVendorExpansion(vendor.vendor_id);
-                            }}
+                            onClick={() => toggleVendorExpansion(vendor.vendor_id)}
                             className="p-1 hover:bg-gray-200 rounded"
                           >
                             {isExpanded ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
@@ -1310,19 +1445,13 @@ export default function VendorManagement() {
                           
                           <div className="flex items-center gap-3">
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteVendor(vendor.vendor_id);
-                              }}
+                              onClick={() => deleteVendor(vendor.vendor_id)}
                               className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                updateVendor(vendor.vendor_id);
-                              }}
+                              onClick={() => updateVendor(vendor.vendor_id)}
                               disabled={vendorStatus === 'updating'}
                               className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
                             >
@@ -1339,7 +1468,6 @@ export default function VendorManagement() {
                                 type="checkbox"
                                 checked={selectedVendors.includes(vendor.vendor_id)}
                                 onChange={(e) => {
-                                  e.stopPropagation();
                                   if (e.target.checked) {
                                     setSelectedVendors(prev => [...prev, vendor.vendor_id]);
                                   } else {
@@ -1352,7 +1480,6 @@ export default function VendorManagement() {
                               <label
                                 htmlFor={`checkbox-${vendor.vendor_id}`}
                                 className="flex items-center justify-center w-6 h-6 border-2 border-gray-300 rounded-lg cursor-pointer transition-all duration-200 hover:border-blue-500 hover:bg-blue-50"
-                                onClick={(e) => e.stopPropagation()}
                               >
                                 {selectedVendors.includes(vendor.vendor_id) && (
                                   <CheckCircle className="w-4 h-4 text-blue-600" />
@@ -1361,7 +1488,10 @@ export default function VendorManagement() {
                             </div>
                           </div>
                           
-                          <div>
+                          <div 
+                            className="cursor-pointer hover:bg-gray-100 transition-colors rounded p-2 -m-2 flex-1"
+                            onClick={() => toggleVendorExpansion(vendor.vendor_id)}
+                          >
                             <h3 className="font-medium text-gray-900">{vendor.vendor_name}</h3>
                             <div className="flex items-center gap-4 text-sm text-gray-600">
                               <span className="text-gray-900">{vendor.total_items} آیتم</span>
@@ -1390,12 +1520,18 @@ export default function VendorManagement() {
                         <div className="flex items-center gap-3">
                           {/* Auto-update Toggle */}
                           <div onClick={(e) => e.stopPropagation()}>
-                            <Switch
-                              checked={vendor.auto_update_enabled}
-                              onCheckedChange={(checked) => {
-                                toggleVendorAutoUpdate(vendor.vendor_id, checked);
-                              }}
-                            />
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={vendor.auto_update_enabled}
+                                disabled={togglingVendors.has(vendor.vendor_id)}
+                                onCheckedChange={(checked) => {
+                                  toggleVendorAutoUpdate(vendor.vendor_id, checked);
+                                }}
+                              />
+                              {togglingVendors.has(vendor.vendor_id) && (
+                                <Loader2 className="w-3 h-3 animate-spin text-gray-500" />
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>

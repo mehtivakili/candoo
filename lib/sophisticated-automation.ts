@@ -249,13 +249,34 @@ export class SophisticatedSnappFoodAutomation {
     try {
       console.log(`🔍 Extracting vendor menu from: ${vendorUrl}`);
       
-      // Navigate to the vendor page using existing browser
+      // Navigate to the vendor page using existing browser with retry logic
       console.log('🌐 Navigating to vendor page using EXISTING browser...');
-      await this.page.goto(vendorUrl, {
-        waitUntil: 'domcontentloaded',
-        timeout: 60000
-      });
-      console.log('✅ Page navigation completed');
+      
+      let navigationSuccess = false;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (!navigationSuccess && retryCount < maxRetries) {
+        try {
+          await this.page.goto(vendorUrl, {
+            waitUntil: 'domcontentloaded',
+            timeout: 30000 // Reduced timeout
+          });
+          navigationSuccess = true;
+          console.log('✅ Page navigation completed');
+        } catch (error: any) {
+          retryCount++;
+          console.log(`⚠️ Navigation attempt ${retryCount} failed: ${error.message}`);
+          
+          if (retryCount < maxRetries) {
+            console.log(`🔄 Retrying navigation in 2 seconds... (${retryCount}/${maxRetries})`);
+            await this.delay(2000);
+          } else {
+            console.log('❌ All navigation attempts failed');
+            throw error;
+          }
+        }
+      }
 
       // Wait a bit for dynamic content to load
       await this.delay(3000);

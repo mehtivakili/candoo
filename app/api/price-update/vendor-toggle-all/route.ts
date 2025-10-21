@@ -34,6 +34,27 @@ export async function POST(request: NextRequest) {
     // Save updated configurations
     await configManager.saveVendorConfigs(updatedConfigs);
     
+    // Also update the main price update configuration
+    const mainConfig = await configManager.loadConfig();
+    const allVendorIds = updatedConfigs.map(config => config.vendor_id);
+    
+    if (enabled) {
+      // Enable all vendors
+      mainConfig.vendor_settings.active_vendors = allVendorIds;
+      mainConfig.vendor_settings.inactive_vendors = [];
+    } else {
+      // Disable all vendors
+      mainConfig.vendor_settings.active_vendors = [];
+      mainConfig.vendor_settings.inactive_vendors = allVendorIds;
+    }
+    
+    mainConfig.vendor_settings.auto_update_enabled_count = enabled ? allVendorIds.length : 0;
+    mainConfig.vendor_settings.total_vendors_count = allVendorIds.length;
+    mainConfig.last_config_update = new Date().toISOString();
+    
+    // Save the main configuration
+    await configManager.saveConfig(mainConfig);
+    
     console.log(`✅ Successfully ${enabled ? 'activated' : 'deactivated'} auto-update for ${updatedConfigs.length} vendors`);
     
     return NextResponse.json({

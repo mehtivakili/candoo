@@ -30,7 +30,12 @@ export interface PriceUpdateConfig {
     retry_attempts: number;
     timeout: number;
   };
-  active_vendors: string[]; // Vendor IDs that have auto-update enabled
+  vendor_settings: {
+    active_vendors: string[]; // Vendor IDs that have auto-update enabled
+    inactive_vendors: string[]; // Vendor IDs that have auto-update disabled
+    auto_update_enabled_count: number; // Count of active vendors
+    total_vendors_count: number; // Total vendors in system
+  };
   last_config_update: string;
 }
 
@@ -66,7 +71,24 @@ class ConfigManager {
     try {
       if (fs.existsSync(this.configPath)) {
         const data = fs.readFileSync(this.configPath, 'utf8');
-        return JSON.parse(data);
+        const config = JSON.parse(data);
+        
+        // Migrate old config structure to new structure
+        if (config.active_vendors && !config.vendor_settings) {
+          console.log('🔄 Migrating config to new vendor_settings structure...');
+          config.vendor_settings = {
+            active_vendors: config.active_vendors,
+            inactive_vendors: [],
+            auto_update_enabled_count: config.active_vendors.length,
+            total_vendors_count: config.active_vendors.length
+          };
+          delete config.active_vendors;
+          
+          // Save migrated config
+          await this.saveConfig(config);
+        }
+        
+        return config;
       }
     } catch (error) {
       console.error('Error loading config:', error);
@@ -86,7 +108,12 @@ class ConfigManager {
         retry_attempts: 3,
         timeout: 60000
       },
-      active_vendors: [],
+      vendor_settings: {
+        active_vendors: [],
+        inactive_vendors: [],
+        auto_update_enabled_count: 0,
+        total_vendors_count: 0
+      },
       last_config_update: new Date().toISOString()
     };
   }
@@ -159,12 +186,27 @@ class ConfigManager {
         vendorConfig.auto_update_enabled = enabled;
       }
 
-      // Update active vendors list
-      if (enabled && !config.active_vendors.includes(vendorId)) {
-        config.active_vendors.push(vendorId);
-      } else if (!enabled) {
-        config.active_vendors = config.active_vendors.filter(id => id !== vendorId);
+      // Update vendor settings
+      if (!config.vendor_settings) {
+        config.vendor_settings = {
+          active_vendors: [],
+          inactive_vendors: [],
+          auto_update_enabled_count: 0,
+          total_vendors_count: 0
+        };
       }
+      
+      if (enabled && !config.vendor_settings.active_vendors.includes(vendorId)) {
+        config.vendor_settings.active_vendors.push(vendorId);
+        config.vendor_settings.inactive_vendors = config.vendor_settings.inactive_vendors.filter(id => id !== vendorId);
+      } else if (!enabled) {
+        config.vendor_settings.active_vendors = config.vendor_settings.active_vendors.filter(id => id !== vendorId);
+        if (!config.vendor_settings.inactive_vendors.includes(vendorId)) {
+          config.vendor_settings.inactive_vendors.push(vendorId);
+        }
+      }
+      
+      config.vendor_settings.auto_update_enabled_count = config.vendor_settings.active_vendors.length;
 
       await this.saveVendorConfigs(vendorConfigs);
       await this.saveConfig(config);
@@ -181,7 +223,7 @@ class ConfigManager {
    */
   async getActiveVendors(): Promise<string[]> {
     const config = await this.loadConfig();
-    return config.active_vendors;
+    return config.vendor_settings?.active_vendors || [];
   }
 
   /**

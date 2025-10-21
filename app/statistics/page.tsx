@@ -5,6 +5,8 @@ import { ArrowLeft, TrendingUp, DollarSign, Percent, Calendar, Package, Store, B
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/lib/auth';
+import PersianDatePicker from '@/components/PersianDatePicker';
+import { formatPersianDate } from '@/lib/persian-date-utils';
 
 interface GeneralStats {
   total_items: string;
@@ -1163,22 +1165,22 @@ export default function StatisticsPage() {
                 {/* Date From */}
                 <div className="flex flex-col">
                   <label className="block text-sm font-medium text-gray-700 mb-1">از تاریخ</label>
-                  <input
-                    type="date"
+                  <PersianDatePicker
                     value={fromDate}
-                    onChange={(e) => setFromDate(e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-gray-800 h-10"
+                    onChange={setFromDate}
+                    placeholder="از تاریخ را انتخاب کنید"
+                    className="w-full"
                   />
                 </div>
 
                 {/* Date To */}
                 <div className="flex flex-col">
                   <label className="block text-sm font-medium text-gray-700 mb-1">تا تاریخ</label>
-                  <input
-                    type="date"
+                  <PersianDatePicker
                     value={toDate}
-                    onChange={(e) => setToDate(e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-gray-800 h-10"
+                    onChange={setToDate}
+                    placeholder="تا تاریخ را انتخاب کنید"
+                    className="w-full"
                   />
                 </div>
 
@@ -1399,7 +1401,7 @@ export default function StatisticsPage() {
                                     stroke="white"
                                     strokeWidth="2"
                                   >
-                                    <title>{`${new Date(point.date).toLocaleDateString('fa-IR')}: قیمت اصلی ${formatPrice(originalPrice)}`}</title>
+                                    <title>{`${formatPersianDate(point.date)}: قیمت اصلی ${formatPrice(originalPrice)}`}</title>
                                   </circle>
                                 )}
                                 
@@ -1413,7 +1415,7 @@ export default function StatisticsPage() {
                                   strokeWidth="2"
                                   className="hover:r-8 cursor-pointer transition-all"
                                 >
-                                  <title>{`${new Date(point.date).toLocaleDateString('fa-IR')}: ${formatPrice(finalPrice)}${originalPrice !== finalPrice ? ` (قیمت اصلی: ${formatPrice(originalPrice)})` : ''}`}</title>
+                                  <title>{`${formatPersianDate(point.date)}: ${formatPrice(finalPrice)}${originalPrice !== finalPrice ? ` (قیمت اصلی: ${formatPrice(originalPrice)})` : ''}`}</title>
                                 </circle>
                               </g>
                             );
@@ -1432,11 +1434,11 @@ export default function StatisticsPage() {
                     );
                     return (
                       <>
-                        <span>{new Date(sortedData[0].date).toLocaleDateString('fa-IR')}</span>
+                        <span>{formatPersianDate(sortedData[0].date)}</span>
                         {sortedData.length > 2 && (
-                          <span>{new Date(sortedData[Math.floor(sortedData.length / 2)].date).toLocaleDateString('fa-IR')}</span>
+                          <span>{formatPersianDate(sortedData[Math.floor(sortedData.length / 2)].date)}</span>
                         )}
-                        <span>{new Date(sortedData[sortedData.length - 1].date).toLocaleDateString('fa-IR')}</span>
+                        <span>{formatPersianDate(sortedData[sortedData.length - 1].date)}</span>
                       </>
                     );
                   })()}
@@ -1528,8 +1530,8 @@ export default function StatisticsPage() {
                               {filter.name}
                             </h4>
                             <div className="text-xs text-gray-600 space-y-0.5">
-                              {filter.from_date && <p>از: {new Date(filter.from_date).toLocaleDateString('fa-IR')}</p>}
-                              {filter.to_date && <p>تا: {new Date(filter.to_date).toLocaleDateString('fa-IR')}</p>}
+                              {filter.from_date && <p>از: {formatPersianDate(filter.from_date)}</p>}
+                              {filter.to_date && <p>تا: {formatPersianDate(filter.to_date)}</p>}
                               {filter.vendor && <p>رستوران: {filter.vendor}</p>}
                               {filter.category && <p>دسته: {filter.category}</p>}
                               {filter.item && <p>محصول: {filter.item}</p>}

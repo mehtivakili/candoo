@@ -212,6 +212,7 @@ class PriceUpdateScheduler {
 
           // Delay between vendors to avoid overwhelming the system
           if (i < vendors.length - 1) {
+            console.log(`⏳ Waiting ${this.config.delayBetweenVendors}ms before next vendor...`);
             await this.delay(this.config.delayBetweenVendors);
           }
 
@@ -259,22 +260,42 @@ class PriceUpdateScheduler {
    * Get vendors that need price updates
    */
   private async getVendorsToUpdate(vendorIds?: string[]): Promise<Array<{vendor_id: string, vendor_name: string}>> {
+    // If specific vendor IDs are provided (manual update), use those
+    if (vendorIds && vendorIds.length > 0) {
+      let queryText = `
+        SELECT DISTINCT vendor_id, vendor_name
+        FROM menus
+        WHERE vendor_id = ANY($1)
+        ORDER BY vendor_name
+      `;
+      
+      const result = await query(queryText, [vendorIds]);
+      return result.rows;
+    }
+    
+    // For scheduled updates, only get vendors that have auto-update enabled
+    // Load active vendors from configuration
+    const ConfigManager = (await import('./config-manager')).default;
+    const configManager = ConfigManager.getInstance();
+    const config = await configManager.loadConfig();
+    
+    const activeVendors = config.vendor_settings?.active_vendors || [];
+    
+    if (!activeVendors || activeVendors.length === 0) {
+      console.log('⚠️ No active vendors configured for auto-update');
+      return [];
+    }
+    
+    console.log(`🔄 Found ${activeVendors.length} active vendors for auto-update`);
+    
     let queryText = `
       SELECT DISTINCT vendor_id, vendor_name
       FROM menus
-      WHERE vendor_id IS NOT NULL AND vendor_id != ''
+      WHERE vendor_id = ANY($1)
+      ORDER BY vendor_name
     `;
     
-    const params: any[] = [];
-    
-    if (vendorIds && vendorIds.length > 0) {
-      queryText += ` AND vendor_id = ANY($1)`;
-      params.push(vendorIds);
-    }
-    
-    queryText += ` ORDER BY vendor_name`;
-    
-    const result = await query(queryText, params.length > 0 ? params : []);
+    const result = await query(queryText, [activeVendors]);
     return result.rows;
   }
 

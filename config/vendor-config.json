@@ -2,7 +2,7 @@
   {
     "vendor_id": "https://snappfood.ir/restaurant/menu/%D8%AA%D9%87%DB%8C%D9%87_%D8%BA%D8%B0%D8%A7%DB%8C_%D9%85%DB%8C%D9%87%D9%85%D8%A7%D9%86-r-p89xj5/",
     "vendor_name": "",
-    "auto_update_enabled": true,
+    "auto_update_enabled": false,
     "last_update": null,
     "update_frequency": "daily",
     "priority": "medium"
@@ -10,7 +10,7 @@
   {
     "vendor_id": "https://snappfood.ir/restaurant/menu/%D8%AA%D9%87%DB%8C%D9%87_%D8%BA%D8%B0%D8%A7%DB%8C_%D9%BE%D8%A7%D8%B1%D8%B3%DB%8C_%D9%88%D9%84%DB%8C%D8%B9%D8%B5%D8%B1-r-32jyw5/",
     "vendor_name": "",
-    "auto_update_enabled": false,
+    "auto_update_enabled": true,
     "last_update": "2025-10-19T11:15:32.755Z",
     "update_frequency": "daily",
     "priority": "medium"
@@ -18,7 +18,7 @@
   {
     "vendor_id": "https://snappfood.ir/restaurant/menu/%D9%BE%DB%8C%D8%AA%D8%B2%D8%A7_%D8%B4%DB%8C%D9%84%D8%A7__%D9%85%DB%8C%D8%AF%D8%A7%D9%86_%D9%88%D9%84%DB%8C%D8%B9%D8%B5%D8%B1_-r-p5d5v0/",
     "vendor_name": "",
-    "auto_update_enabled": true,
+    "auto_update_enabled": false,
     "last_update": null,
     "update_frequency": "daily",
     "priority": "medium"
@@ -26,7 +26,7 @@
   {
     "vendor_id": "https://snappfood.ir/restaurant/menu/P_S__%D9%81%DB%8C%D9%84%DB%8C%D9%BE%D8%B1_-r-37x9q9/",
     "vendor_name": "",
-    "auto_update_enabled": true,
+    "auto_update_enabled": false,
     "last_update": "2025-10-19T12:55:10.416Z",
     "update_frequency": "daily",
     "priority": "medium"
@@ -34,7 +34,7 @@
   {
     "vendor_id": "https://snappfood.ir/restaurant/menu/%D8%AF%DB%8C%D8%B2%DB%8C%D8%AA%D9%88-r-jym769/",
     "vendor_name": "",
-    "auto_update_enabled": true,
+    "auto_update_enabled": false,
     "last_update": null,
     "update_frequency": "daily",
     "priority": "medium"
@@ -42,7 +42,7 @@
   {
     "vendor_id": "https://snappfood.ir/restaurant/menu/%D8%B1%D8%B3%D8%AA%D9%88%D8%B1%D8%A7%D9%86_%D8%A8%D8%B1%D9%87_%D8%B3%D9%81%DB%8C%D8%AF-r-nn57xr/",
     "vendor_name": "",
-    "auto_update_enabled": true,
+    "auto_update_enabled": false,
     "last_update": null,
     "update_frequency": "daily",
     "priority": "medium"
@@ -66,7 +66,7 @@
   {
     "vendor_id": "https://snappfood.ir/restaurant/menu/%D9%81%D8%B3%D8%AA_%D9%81%D9%88%D8%AF_%D8%AA%D8%A7%D9%86%D9%88-r-94llzd/",
     "vendor_name": "",
-    "auto_update_enabled": true,
+    "auto_update_enabled": false,
     "last_update": null,
     "update_frequency": "daily",
     "priority": "medium"
@@ -74,7 +74,7 @@
   {
     "vendor_id": "https://snappfood.ir/restaurant/menu/%DA%A9%D8%A8%D8%A7%D8%A8%D8%B3%D8%B1%D8%A7%DB%8C_%D8%B1%DB%8C%D8%AD%D9%88%D9%86-r-0nrxg8/",
     "vendor_name": "",
-    "auto_update_enabled": true,
+    "auto_update_enabled": false,
     "last_update": null,
     "update_frequency": "daily",
     "priority": "medium"
@@ -82,7 +82,111 @@
   {
     "vendor_id": "https://snappfood.ir/restaurant/menu/%DA%A9%D8%A8%D8%A7%D8%A8_%D8%A2%D8%A8%D8%A7%D9%86-r-0nnqnz/",
     "vendor_name": "",
+    "auto_update_enabled": false,
+    "last_update": null,
+    "update_frequency": "daily",
+    "priority": "medium"
+  },
+  {
+    "vendor_id": "https://snappfood.ir/restaurant/menu/%D9%81%DB%8C%D9%86%DA%AF%DB%8C%D9%84_%D8%A8%D8%B1%DB%8C%DA%A9_%D8%B1%D9%88%DB%8C%D8%A7-r-3x4rg9/",
+    "vendor_name": "",
+    "auto_update_enabled": false,
+    "last_update": null,
+    "update_frequency": "daily",
+    "priority": "medium"
+  },
+  {
+    "vendor_id": "https://snappfood.ir/restaurant/menu/%D8%B1%D8%B3%D8%AA%D9%88%D8%B1%D8%A7%D9%86_%D9%88%D8%B1%D9%86%D9%88%D8%B3-r-0rr2z9/",
+    "vendor_name": "",
+    "auto_update_enabled": false,
+    "last_update": null,
+    "update_frequency": "daily",
+    "priority": "medium"
+  },
+  {
+    "vendor_id": "https://snappfood.ir/restaurant/menu/%D8%B3%D9%81%D8%B1%D9%87_%D8%AE%D8%A7%D9%86%D9%87_%D8%AD%D8%A7%D9%81%D8%B8%DB%8C%D9%87-r-y1w9zm/",
+    "vendor_name": "",
+    "auto_update_enabled": false,
+    "last_update": null,
+    "update_frequency": "daily",
+    "priority": "medium"
+  },
+  {
+    "vendor_id": "https://snappfood.ir/restaurant/menu/%D8%AC%D8%A7%D8%B3%D8%AA_%D9%81%D9%84%D8%A7%D9%81%D9%84_60-r-7j6l12/",
+    "vendor_name": "",
+    "auto_update_enabled": false,
+    "last_update": null,
+    "update_frequency": "daily",
+    "priority": "medium"
+  },
+  {
+    "vendor_id": "https://snappfood.ir/restaurant/menu/%DA%86%D9%84%D9%88%D9%BE%D8%B2__%D9%81%D9%84%D8%B3%D8%B7%DB%8C%D9%86_-r-097446/",
+    "vendor_name": "",
+    "auto_update_enabled": false,
+    "last_update": null,
+    "update_frequency": "daily",
+    "priority": "medium"
+  },
+  {
+    "vendor_id": "https://snappfood.ir/restaurant/menu/%D8%B1%D8%B3%D8%AA%D9%88%D8%B1%D8%A7%D9%86_%D8%AA%DA%A9_%D9%BE%D8%B2-r-0g6j4m/",
+    "vendor_name": "",
     "auto_update_enabled": true,
+    "last_update": null,
+    "update_frequency": "daily",
+    "priority": "medium"
+  },
+  {
+    "vendor_id": "https://snappfood.ir/restaurant/menu/%D8%B1%D8%B3%D8%AA%D9%88%D8%B1%D8%A7%D9%86_%D8%AD%D8%A7%D8%AC_%D9%85%D8%AD%D8%B3%D9%86-r-pvxjmm/",
+    "vendor_name": "",
+    "auto_update_enabled": true,
+    "last_update": null,
+    "update_frequency": "daily",
+    "priority": "medium"
+  },
+  {
+    "vendor_id": "https://snappfood.ir/restaurant/menu/%D8%B1%D8%B3%D8%AA%D9%88%D8%B1%D8%A7%D9%86_%D9%85%D8%B6%D8%B1%D8%A7%D8%A8-r-gnz5rx/",
+    "vendor_name": "",
+    "auto_update_enabled": false,
+    "last_update": null,
+    "update_frequency": "daily",
+    "priority": "medium"
+  },
+  {
+    "vendor_id": "https://snappfood.ir/restaurant/menu/%D8%B1%D8%B3%D8%AA%D9%88%D8%B1%D8%A7%D9%86_%D9%86%DA%AF%DB%8C%D9%86__%D9%87%D8%AA%D9%84_%D8%A2%D8%AA%D8%A7%D9%86%D8%A7_-r-3ko98k/",
+    "vendor_name": "",
+    "auto_update_enabled": false,
+    "last_update": null,
+    "update_frequency": "daily",
+    "priority": "medium"
+  },
+  {
+    "vendor_id": "https://snappfood.ir/restaurant/menu/%DA%A9%D8%A7%D9%81%D9%87_%D8%B1%D8%B3%D8%AA%D9%88%D8%B1%D8%A7%D9%86_%D9%87%D9%88%D9%86%D8%A7%D8%B1%D8%A7-r-12wgg2/",
+    "vendor_name": "",
+    "auto_update_enabled": false,
+    "last_update": null,
+    "update_frequency": "daily",
+    "priority": "medium"
+  },
+  {
+    "vendor_id": "https://snappfood.ir/restaurant/menu/%D9%85%D8%B7%D8%A8%D8%AE_%D8%AE%D8%A7%D8%AA%D9%88%D9%86-r-3edgq5/",
+    "vendor_name": "",
+    "auto_update_enabled": false,
+    "last_update": null,
+    "update_frequency": "daily",
+    "priority": "medium"
+  },
+  {
+    "vendor_id": "https://snappfood.ir/restaurant/menu/%DA%A9%D8%A7%D9%81%D9%87_%D8%B1%D8%B3%D8%AA%D9%88%D8%B1%D8%A7%D9%86_%D8%B1%D8%A7%D9%81%D8%A7%D8%A6%D9%84-r-0wzzx8/",
+    "vendor_name": "",
+    "auto_update_enabled": false,
+    "last_update": null,
+    "update_frequency": "daily",
+    "priority": "medium"
+  },
+  {
+    "vendor_id": "https://snappfood.ir/restaurant/menu/%D9%81%D8%B3%D8%AA_%D9%81%D9%88%D8%AF_%D9%81%D9%84%D9%81%D9%84_%D9%82%D8%B1%D9%85%D8%B2__%D8%B4%D8%B9%D8%A8%D9%87_%D9%81%D8%A7%D8%B7%D9%85%DB%8C_-r-3kqj6o/",
+    "vendor_name": "",
+    "auto_update_enabled": false,
     "last_update": null,
     "update_frequency": "daily",
     "priority": "medium"

@@ -6,6 +6,7 @@
  */
 
 import PriceUpdateScheduler from './price-update-scheduler';
+import ConfigManager from './config-manager';
 
 class SchedulerManager {
   private static instance: SchedulerManager;
@@ -35,11 +36,50 @@ class SchedulerManager {
     try {
       console.log('🚀 Initializing price update scheduler...');
       
+      // Load configuration from file system
+      const configManager = ConfigManager.getInstance();
+      const fileConfig = await configManager.loadConfig();
+      
+      // Convert file config to scheduler config format
+      let cronSchedule = '0 6 * * *'; // Default
+      
+      if (fileConfig.schedule.days && fileConfig.schedule.days.length > 0) {
+        // Convert day names to cron format
+        const dayMap: { [key: string]: number } = {
+          'sunday': 0,
+          'monday': 1,
+          'tuesday': 2,
+          'wednesday': 3,
+          'thursday': 4,
+          'friday': 5,
+          'saturday': 6
+        };
+        
+        const cronDays = fileConfig.schedule.days.map((day: string) => dayMap[day]).join(',');
+        cronSchedule = `${fileConfig.schedule.minute || 0} ${fileConfig.schedule.hour || 6} * * ${cronDays}`;
+      } else {
+        // Daily schedule
+        cronSchedule = `${fileConfig.schedule.minute || 0} ${fileConfig.schedule.hour || 6} * * *`;
+      }
+      
+      const schedulerConfig = {
+        schedule: cronSchedule,
+        enabled: fileConfig.global_enabled,
+        maxVendorsPerRun: fileConfig.batch_settings.max_vendors_per_run,
+        delayBetweenVendors: fileConfig.batch_settings.delay_between_vendors,
+        retryAttempts: fileConfig.batch_settings.retry_attempts,
+        timeout: fileConfig.batch_settings.timeout
+      };
+      
+      // Update scheduler with loaded config
+      this.scheduler.updateConfig(schedulerConfig);
+      
       // Start the scheduler
       this.scheduler.startScheduler();
       
       this.isInitialized = true;
       console.log('✅ Price update scheduler initialized successfully');
+      console.log(`📅 Schedule: ${cronSchedule} (${fileConfig.global_enabled ? 'enabled' : 'disabled'})`);
       
     } catch (error) {
       console.error('❌ Failed to initialize price update scheduler:', error);
