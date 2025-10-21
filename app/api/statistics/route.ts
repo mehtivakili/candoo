@@ -11,8 +11,6 @@ import { query } from '@/lib/database';
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('📊 Fetching database statistics...');
-
     // 1. General Statistics
     const generalStats = await query(`
       SELECT 
@@ -162,32 +160,54 @@ export async function GET(request: NextRequest) {
 
     // 7. Top Expensive Items
     const topExpensive = await query(`
-      SELECT DISTINCT ON (article_id, vendor_id, "group")
-        article_id as name,
+      WITH latest_items AS (
+        SELECT DISTINCT ON (article_id, vendor_id, "group")
+          article_id as name,
+          vendor_name,
+          "group" as category,
+          price,
+          discount,
+          original_price
+        FROM menus
+        WHERE price IS NOT NULL
+        ORDER BY article_id, vendor_id, "group", created_at DESC
+      )
+      SELECT 
+        name,
         vendor_name,
-        "group" as category,
+        category,
         price,
-        discount
-      FROM menus
-      WHERE price IS NOT NULL
-      ORDER BY article_id, vendor_id, "group", created_at DESC, price DESC
+        discount,
+        original_price
+      FROM latest_items
+      ORDER BY price DESC
       LIMIT 10
     `);
 
     // 8. Most Discounted Items
     const mostDiscounted = await query(`
-      SELECT DISTINCT ON (article_id, vendor_id, "group")
-        article_id as name,
+      WITH latest_items AS (
+        SELECT DISTINCT ON (article_id, vendor_id, "group")
+          article_id as name,
+          vendor_name,
+          original_price,
+          price,
+          discount
+        FROM menus
+        WHERE has_discount = TRUE 
+          AND original_price IS NOT NULL 
+          AND price IS NOT NULL
+          AND original_price > 0
+        ORDER BY article_id, vendor_id, "group", created_at DESC
+      )
+      SELECT 
+        name,
         vendor_name,
         original_price,
         price,
         discount
-      FROM menus
-      WHERE has_discount = TRUE 
-        AND original_price IS NOT NULL 
-        AND price IS NOT NULL
-        AND original_price > 0
-      ORDER BY article_id, vendor_id, "group", created_at DESC, ((original_price - price) / original_price) DESC
+      FROM latest_items
+      ORDER BY ((original_price - price) / original_price) DESC
       LIMIT 10
     `);
 
@@ -202,8 +222,6 @@ export async function GET(request: NextRequest) {
       GROUP BY DATE(created_at)
       ORDER BY date DESC
     `);
-
-    console.log('✅ Statistics fetched successfully');
 
     return NextResponse.json({
       success: true,

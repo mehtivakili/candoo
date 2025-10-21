@@ -94,26 +94,28 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="mx-auto w-32 h-32 mb-6">
-              <Image
-                src="/logo.jpg"
-                alt="Logo"
-                width={128}
-                height={128}
-                className="rounded-2xl shadow-xl"
-                priority
-              />
+            <div className="mx-auto w-56 h-56 mb-6">
+              <div className="w-56 h-56 rounded-full overflow-hidden shadow-xl">
+                <Image
+                  src="/logo.jpg"
+                  alt="Logo"
+                  width={224}
+                  height={224}
+                  className="w-full h-full object-cover scale-110"
+                  priority
+                />
+              </div>
             </div>
             <h1 className="text-4xl font-bold text-gray-800 mb-2">ورود به سیستم</h1>
             <p className="text-gray-600 text-lg">لطفاً اطلاعات ورود خود را وارد کنید</p>
           </div>
 
           {/* Login Form */}
-          <div className="bg-white rounded-2xl shadow-2xl p-8 border border-gray-100">
-            <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="bg-white rounded-2xl shadow-2xl p-4 border border-gray-100">
+            <form onSubmit={handleSubmit} className="space-y-3">
               {/* Username Field */}
               <div>
-                <label htmlFor="username" className="block text-sm font-semibold text-gray-700 mb-3">
+                <label htmlFor="username" className="block text-sm font-semibold text-gray-700 mb-2">
                   نام کاربری
                 </label>
                 <div className="relative">
@@ -125,7 +127,7 @@ export default function LoginPage() {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="block w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 text-lg transition-all duration-200"
+                    className="block w-full pl-12 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 text-lg transition-all duration-200"
                     placeholder="نام کاربری را وارد کنید"
                     required
                   />
@@ -134,7 +136,7 @@ export default function LoginPage() {
 
               {/* Password Field */}
               <div>
-                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-3">
+                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
                   رمز عبور
                 </label>
                 <div className="relative">
@@ -146,7 +148,7 @@ export default function LoginPage() {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full pl-12 pr-14 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 text-lg transition-all duration-200"
+                    className="block w-full pl-12 pr-14 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 text-lg transition-all duration-200"
                     placeholder="رمز عبور را وارد کنید"
                     required
                   />
@@ -172,20 +174,22 @@ export default function LoginPage() {
               )}
 
               {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full flex justify-center py-4 px-6 border border-transparent rounded-xl shadow-lg text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
-              >
-                {isLoading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                    در حال ورود...
-                  </div>
-                ) : (
-                  'ورود به سیستم'
-                )}
-              </button>
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full flex justify-center py-2 px-6 border border-transparent rounded-xl shadow-lg text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
+                >
+                  {isLoading ? (
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                      در حال ورود...
+                    </div>
+                  ) : (
+                    'ورود به سیستم'
+                  )}
+                </button>
+              </div>
             </form>
           </div>
         </div>

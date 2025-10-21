@@ -31,8 +31,6 @@ export function getPool(): Pool {
     pool.on('error', (err) => {
       console.error('❌ Unexpected database error:', err);
     });
-    
-    console.log('✅ Database connection pool created');
   }
   
   return pool;
@@ -71,7 +69,6 @@ export async function query<T extends QueryResultRow = any>(
     const duration = Date.now() - start;
     
     console.log('📊 Query executed:', {
-      query: text.substring(0, 100),
       duration: `${duration}ms`,
       rows: result.rowCount
     });
@@ -174,7 +171,6 @@ export async function upsertMenuItems(items: MenuItem[]): Promise<number> {
     for (const item of items) {
       // Skip items with no valid price
       if (!item.price || item.price <= 0) {
-        console.log(`⏭️ Skipping item with invalid price: ${item.article_id} (price: ${item.price})`);
         continue;
       }
 
@@ -208,7 +204,6 @@ export async function upsertMenuItems(items: MenuItem[]): Promise<number> {
     }
     
     await client.query('COMMIT');
-    console.log(`✅ Inserted/Updated ${insertedCount} menu items`);
     
     return insertedCount;
   } catch (error) {

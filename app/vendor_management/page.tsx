@@ -628,7 +628,6 @@ export default function VendorManagement() {
         
         // If scheduler just finished running, refresh vendor data
         if (wasRunning && !isRunning) {
-          console.log('🔄 Scheduler finished, refreshing vendor data...');
           await loadVendors();
           // Clear all status indicators when scheduler finishes
           setUpdatingVendors(new Set());
@@ -663,12 +662,6 @@ export default function VendorManagement() {
               // Failed vendors are not shown as updating or completed
             });
           }
-          
-          console.log('🔄 Updating vendor status:', {
-            updating: Array.from(updatingIds),
-            completed: Array.from(completedIds),
-            currentVendor: session.currentVendor
-          });
           
           setUpdatingVendors(updatingIds);
           setCompletedVendors(completedIds);

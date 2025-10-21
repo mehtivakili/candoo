@@ -1,6 +1,6 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
+# Dependencies
 /node_modules
 /.pnp
 .pnp.*
@@ -9,47 +9,263 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
-# testing
+# Testing
 /coverage
+/test-results/
+/playwright-report/
+/playwright/.cache/
 
-# next.js
+# Next.js
 /.next/
 /out/
+.next/
+out/
 
-# production
+# Production builds
 /build
+/dist
+/build/
+/dist/
 
-# misc
-.DS_Store
-*.pem
+# Environment variables
+.env*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# debug
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+lerna-debug.log*
+*.log
+logs/
+*.log.*
 
-# env files (can opt-in for committing if needed)
-.env*
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
 
-# vercel
-.vercel
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# nyc test coverage
+.nyc_output
 
-# browser profiles (contains user data and cache)
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Browser profiles and cache (contains user data and cache)
 /snapp-profile/
+/snapp-profiles/
+/chrome-profile/
+/chrome-profiles/
+/firefox-profile/
+/firefox-profiles/
+/puppeteer-profile/
+/puppeteer-profiles/
+/browser-profile/
+/browser-profiles/
+/profiles/
+*.profile
+*.profiles
 
-# IDE settings
+# Browser automation data
+/chrome-data/
+/firefox-data/
+/browser-data/
+/user-data/
+/cache/
+/temp/
+/tmp/
+
+# IDE and Editor files
 /.vscode/
+/.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.tmp
+*.temp
 
-# temporary test files
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+*.swp
+*.swo
+*~
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# Configuration files with sensitive data
+config.json
+secrets.json
+credentials.json
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Documentation drafts and temporary files
+*_SUMMARY.md
+*_GUIDE.md
+START_HERE.md
+TODO.md
+NOTES.md
+DRAFT_*.md
+TEMP_*.md
+
+# Test files
 test-*.js
+test-*.ts
+test-*.json
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
 
-# documentation drafts (optional - uncomment if you want to exclude)
-# *_SUMMARY.md
-# *_GUIDE.md
-# START_HERE.md
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Archive files
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+*.gz
+
+# Media files (if not needed in repo)
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.webm
+*.mp3
+*.wav
+*.flac
+*.aac
+*.ogg
+
+# Image files (if not needed in repo)
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tiff
+*.svg
+*.ico
+*.webp
+
+# Large files that shouldn't be in git
+*.iso
+*.dmg
+*.img
+*.bin
+
+# PM2 files
+.pm2/
+ecosystem.config.js.bak
+
+# Backup files
+*.backup
+*.bak
+backup/
+backups/
+
+# Cache directories
+.cache/
+cache/
+.npm/
+.yarn/
+.pnpm/
+
+# Temporary directories
+temp/
+tmp/
+temporary/
+
+# Local development files
+local/
+dev/
+development/
+
+# Generated files
+generated/
+auto-generated/

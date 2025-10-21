@@ -4,19 +4,38 @@ import { query } from '@/lib/database';
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
+    const earliestOnly = searchParams.get('earliest');
+    
+    // If only requesting earliest date
+    if (earliestOnly === 'true') {
+      try {
+        const earliestQuery = await query<{ earliest_date: string }>(`
+          SELECT MIN(created_at) as earliest_date
+          FROM menus
+          WHERE created_at IS NOT NULL
+        `);
+        
+        return NextResponse.json({
+          success: true,
+          earliestDate: earliestQuery.rows[0]?.earliest_date
+        });
+      } catch (error) {
+        console.error('❌ Error fetching earliest date:', error);
+        return NextResponse.json(
+          {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          },
+          { status: 500 }
+        );
+      }
+    }
+
     const fromDate = searchParams.get('from_date');
     const toDate = searchParams.get('to_date');
     const vendorName = searchParams.get('vendor_name');
     const group = searchParams.get('group');
     const articleId = searchParams.get('article_id');
-
-    console.log('📊 Fetching price trends with filters:', {
-      fromDate,
-      toDate,
-      vendorName,
-      group,
-      articleId
-    });
 
     // Build dynamic WHERE clause
     const conditions = [];

@@ -147,6 +147,12 @@ export default function StatisticsPage() {
   const [error, setError] = useState<string | null>(null);
   const { logout } = useAuth();
   
+  // Expanded lists state
+  const [expandedExpensive, setExpandedExpensive] = useState<ExpensiveItem[]>([]);
+  const [expandedDiscounted, setExpandedDiscounted] = useState<ExpensiveItem[]>([]);
+  const [isLoadingExpensive, setIsLoadingExpensive] = useState(false);
+  const [isLoadingDiscounted, setIsLoadingDiscounted] = useState(false);
+  
   // Price trend states
   const [trendData, setTrendData] = useState<PriceTrendData[]>([]);
   const [trendFilters, setTrendFilters] = useState<TrendFilters>({ vendors: [], groups: [], items: [] });
@@ -168,13 +174,23 @@ export default function StatisticsPage() {
   const [selectedGroup, setSelectedGroup] = useState('all');
   const [selectedItem, setSelectedItem] = useState('all');
   const [fromDate, setFromDate] = useState(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 60); // Default to 60 days ago
+    // Set to a recent date that should have data (October 2025)
+    const date = new Date('2025-10-01');
     return date.toISOString().split('T')[0];
   });
   const [toDate, setToDate] = useState(() => {
-    return new Date().toISOString().split('T')[0];
+    // Set to a date that includes the actual data
+    const date = new Date('2025-10-25');
+    return date.toISOString().split('T')[0];
   });
+
+  // Dynamic default interval calculation
+  const calculateDefaultInterval = (dataRange: number) => {
+    if (dataRange <= 7) return 7; // Less than 7 days: show 7 days
+    if (dataRange <= 14) return 14; // 1-2 weeks: show 2 weeks
+    if (dataRange <= 21) return 21; // 2-3 weeks: show 3 weeks
+    return 28; // More than 3 weeks: show 4 weeks
+  };
   
   // Saved filters states
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
@@ -203,11 +219,108 @@ export default function StatisticsPage() {
     fetchSavedFilters();
     fetchVendorStats();
     fetchComparisonFilters();
+    fetchEarliestDate();
   }, []);
 
+  // Fetch the earliest available date to set proper initial range
+  const fetchEarliestDate = async () => {
+    try {
+      const response = await fetch('/api/price-trends?earliest=true');
+      const result = await response.json();
+      
+      if (result.success && result.earliestDate) {
+        const earliestDate = new Date(result.earliestDate);
+        const today = new Date();
+        
+        // Only update dates if current range doesn't include the data
+        const currentFromDate = new Date(fromDate);
+        const currentToDate = new Date(toDate);
+        
+        if (earliestDate < currentFromDate || earliestDate > currentToDate) {
+          // Use a conservative approach - show last 30 days by default
+          const defaultFromDate = new Date();
+          defaultFromDate.setDate(defaultFromDate.getDate() - 30);
+          
+          // Only use earliest date if it's within the last 90 days
+          const maxDaysBack = 90;
+          const minFromDate = new Date();
+          minFromDate.setDate(minFromDate.getDate() - maxDaysBack);
+          
+          let finalFromDate = defaultFromDate;
+          if (earliestDate > minFromDate && earliestDate < today) {
+            // Use earliest date if it's recent enough
+            finalFromDate = earliestDate;
+          }
+          
+          // Set fromDate to the calculated date
+          setFromDate(finalFromDate.toISOString().split('T')[0]);
+          
+          // Set toDate to today
+          setToDate(today.toISOString().split('T')[0]);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error fetching earliest date:', error);
+    }
+  };
+
+  // Auto-adjust date range based on data availability
   useEffect(() => {
+    if (trendData.length > 0) {
+      const dates = trendData.map(d => new Date(d.date).getTime());
+      const minDate = Math.min(...dates);
+      const maxDate = Math.max(...dates);
+      const dataRange = (maxDate - minDate) / (1000 * 60 * 60 * 24); // Days
+      
+      // Start from the first available data date
+      const firstDataDate = new Date(minDate);
+      const lastDataDate = new Date(maxDate);
+      
+      // Calculate suggested range based on data availability
+      const suggestedRange = calculateDefaultInterval(dataRange);
+      
+      // Set fromDate to start from first data or suggested range, whichever is more recent
+      const suggestedFromDate = new Date();
+      suggestedFromDate.setDate(suggestedFromDate.getDate() - suggestedRange);
+      
+      // Use the more recent date between first data date and suggested range
+      const finalFromDate = firstDataDate > suggestedFromDate ? firstDataDate : suggestedFromDate;
+      
+      // Only adjust if current range doesn't include the first data point
+      const currentFromDate = new Date(fromDate);
+      if (currentFromDate > firstDataDate) {
+        setFromDate(finalFromDate.toISOString().split('T')[0]);
+      }
+      
+      // Set toDate to the last available data date
+      if (new Date(toDate) < lastDataDate) {
+        setToDate(lastDataDate.toISOString().split('T')[0]);
+      }
+    }
+  }, [trendData]);
+
+  useEffect(() => {
+    fetchStatistics();
+    fetchSavedFilters();
+    fetchVendorStats();
+    fetchComparisonFilters();
+    fetchEarliestDate();
+  }, []);
+
+  // Fetch price trends after dates are set
+  useEffect(() => {
+    // Always fetch data, even with empty dates (shows all data)
     fetchPriceTrends();
-  }, [selectedVendor, selectedGroup, selectedItem, fromDate, toDate]);
+  }, [fromDate, toDate, selectedVendor, selectedGroup, selectedItem]);
+
+  // Force initial data fetch after component mounts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchPriceTrends();
+    }, 1000); // Wait 1 second after mount
+
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     fetchComparisonOptions();
@@ -239,13 +352,52 @@ export default function StatisticsPage() {
     }
   };
 
+  // Fetch more expensive items
+  const fetchMoreExpensive = async () => {
+    try {
+      setIsLoadingExpensive(true);
+      const response = await fetch('/api/statistics/expensive?limit=100');
+      const result = await response.json();
+
+      if (result.success) {
+        setExpandedExpensive(result.data);
+      } else {
+        console.error('❌ Error fetching more expensive items:', result.error);
+      }
+    } catch (err: any) {
+      console.error('❌ Error fetching more expensive items:', err);
+    } finally {
+      setIsLoadingExpensive(false);
+    }
+  };
+
+  // Fetch more discounted items
+  const fetchMoreDiscounted = async () => {
+    try {
+      setIsLoadingDiscounted(true);
+      const response = await fetch('/api/statistics/discounted?limit=100');
+      const result = await response.json();
+
+      if (result.success) {
+        setExpandedDiscounted(result.data);
+      } else {
+        console.error('❌ Error fetching more discounted items:', result.error);
+      }
+    } catch (err: any) {
+      console.error('❌ Error fetching more discounted items:', err);
+    } finally {
+      setIsLoadingDiscounted(false);
+    }
+  };
+
   const fetchPriceTrends = async () => {
     try {
       setIsTrendLoading(true);
 
       const params = new URLSearchParams();
-      if (fromDate) params.append('from_date', fromDate);
-      if (toDate) params.append('to_date', toDate);
+      // Only add date filters if they have values
+      if (fromDate && fromDate.trim() !== '') params.append('from_date', fromDate);
+      if (toDate && toDate.trim() !== '') params.append('to_date', toDate);
       if (selectedVendor !== 'all') params.append('vendor_name', selectedVendor);
       if (selectedGroup !== 'all') params.append('group', selectedGroup);
       if (selectedItem !== 'all') params.append('article_id', selectedItem);
@@ -256,9 +408,24 @@ export default function StatisticsPage() {
       if (result.success) {
         setTrendData(result.data);
         setTrendFilters(result.filters);
+        
+        // If no data with current filters, try without date filters to see what's available
+        if (result.data.length === 0 && (fromDate || toDate)) {
+          const noDateParams = new URLSearchParams();
+          if (selectedVendor !== 'all') noDateParams.append('vendor_name', selectedVendor);
+          if (selectedGroup !== 'all') noDateParams.append('group', selectedGroup);
+          if (selectedItem !== 'all') noDateParams.append('article_id', selectedItem);
+          
+          const noDateResponse = await fetch(`/api/price-trends?${noDateParams.toString()}`);
+          const noDateResult = await noDateResponse.json();
+        }
+      } else {
+        console.error('❌ Error fetching price trends:', result.error);
+        setTrendData([]);
       }
     } catch (err: any) {
-      console.error('Error fetching price trends:', err);
+      console.error('❌ Error fetching price trends:', err);
+      setTrendData([]);
     } finally {
       setIsTrendLoading(false);
     }
@@ -349,7 +516,6 @@ export default function StatisticsPage() {
 
   const addComparisonItem = () => {
     if (compSelectedVendor === 'all' || compSelectedItem === 'all') {
-      console.log('❌ Please select both vendor and item');
       return;
     }
 
@@ -386,7 +552,6 @@ export default function StatisticsPage() {
 
   const saveComparisonFilter = async () => {
     if (!comparisonFilterName.trim() || comparisonItems.length === 0) {
-      console.log('❌ Please provide a name and select items');
       return;
     }
 
@@ -404,7 +569,6 @@ export default function StatisticsPage() {
       const result = await response.json();
 
       if (result.success) {
-        console.log('✅ Comparison filter saved successfully');
         setComparisonFilterName('');
         fetchComparisonFilters();
       } else {
@@ -432,7 +596,6 @@ export default function StatisticsPage() {
       const result = await response.json();
 
       if (result.success) {
-        console.log('✅ Comparison filter deleted successfully');
         fetchComparisonFilters();
         if (activeFilterId === id) {
           setActiveFilterId(null);
@@ -460,7 +623,6 @@ export default function StatisticsPage() {
 
         const result = await response.json();
         if (result.success) {
-          console.log('✅ Active filter auto-saved');
           fetchComparisonFilters();
         }
       } catch (err: any) {
@@ -485,7 +647,6 @@ export default function StatisticsPage() {
 
   const generateHistoricalData = async () => {
     if (selectedVendors.length === 0) {
-      console.log('❌ No vendors selected for data generation');
       return;
     }
 
@@ -509,8 +670,6 @@ export default function StatisticsPage() {
       const result = await response.json();
       
       if (result.success) {
-        console.log(`✅ Data generation successful: ${result.message}`);
-        console.log(`📊 Items generated: ${result.itemsGenerated}`);
         // Refresh all data
         await fetchStatistics();
         await fetchVendorStats();
@@ -541,8 +700,6 @@ export default function StatisticsPage() {
       const result = await response.json();
       
       if (result.success) {
-        console.log(`✅ Clean all data successful: ${result.message}`);
-        console.log(`📊 Items deleted: ${result.itemsDeleted}`);
         // Refresh all data
         await fetchStatistics();
         await fetchVendorStats();
@@ -573,7 +730,6 @@ export default function StatisticsPage() {
       const result = await response.json();
       
       if (result.success) {
-        console.log(`✅ Clean timeline data successful: ${result.message}`);
         // Refresh all data
         await fetchStatistics();
         await fetchVendorStats();
@@ -720,7 +876,7 @@ export default function StatisticsPage() {
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
               >
                 <Store className="w-4 h-4" />
-                مدیریت رستوران‌ها
+                مدیریت جمع‌آوری داده
               </Link>
               
               <button
@@ -1184,6 +1340,7 @@ export default function StatisticsPage() {
                   />
                 </div>
 
+
                 {/* Vendor */}
                 <div className="flex flex-col">
                   <label className="block text-sm font-medium text-gray-700 mb-1">رستوران</label>
@@ -1243,13 +1400,28 @@ export default function StatisticsPage() {
           {/* Chart */}
           {isTrendLoading ? (
             <div className="flex items-center justify-center h-80">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              <div className="text-center">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
+                <p className="text-gray-600">در حال بارگذاری داده‌ها...</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  محدوده: {formatPersianDate(fromDate)} تا {formatPersianDate(toDate)}
+                </p>
+              </div>
             </div>
           ) : trendData.length === 0 ? (
             <div className="flex items-center justify-center h-80 text-gray-500">
               <div className="text-center">
                 <Calendar className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                <p>داده‌ای برای فیلترهای انتخاب شده موجود نیست</p>
+                <p className="text-lg mb-2">داده‌ای برای فیلترهای انتخاب شده موجود نیست</p>
+                <p className="text-sm text-gray-400 mb-4">
+                  محدوده تاریخ: {formatPersianDate(fromDate)} تا {formatPersianDate(toDate)}
+                </p>
+                <button
+                  onClick={() => fetchPriceTrends()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                >
+                  تلاش مجدد
+                </button>
               </div>
             </div>
           ) : (
@@ -1264,10 +1436,17 @@ export default function StatisticsPage() {
                     const allPrices = [...finalPrices, ...originalPrices];
                     const maxPrice = Math.max(...allPrices);
                     const minPrice = Math.min(...allPrices);
-                    const step = (maxPrice - minPrice) / 5;
+                    
+                    // Improve scaling for small variations
+                    const range = maxPrice - minPrice;
+                    const padding = range * 0.1; // 10% padding
+                    const adjustedMin = Math.max(0, minPrice - padding);
+                    const adjustedMax = maxPrice + padding;
+                    const step = (adjustedMax - adjustedMin) / 5;
+                    
                     return [5, 4, 3, 2, 1, 0].map((i) => (
                       <span key={i} className="text-xs text-gray-600 font-medium">
-                        {formatNumber(Math.round((minPrice + step * i) / 1000))}K
+                        {formatNumber(Math.round((adjustedMin + step * i) / 1000))}K
                       </span>
                     ));
                   })()}
@@ -1296,7 +1475,13 @@ export default function StatisticsPage() {
                       const allPrices = [...finalPrices, ...originalPrices];
                       const maxPrice = Math.max(...allPrices);
                       const minPrice = Math.min(...allPrices);
-                      const range = maxPrice - minPrice || 1;
+                      
+                      // Improve scaling for small variations
+                      const range = maxPrice - minPrice;
+                      const padding = range * 0.1; // 10% padding
+                      const adjustedMin = Math.max(0, minPrice - padding);
+                      const adjustedMax = maxPrice + padding;
+                      const adjustedRange = adjustedMax - adjustedMin || 1;
                       
                       // Sort data by date to ensure continuous line
                       const sortedData = [...trendData].sort((a, b) => 
@@ -1318,7 +1503,7 @@ export default function StatisticsPage() {
                           const currentDate = new Date(point.date).getTime();
                           const x = ((currentDate - minDate) / dateRange) * 1000;
                           const priceValue = Number(point[priceField] || point.avg_price);
-                          const y = 400 - (((priceValue - minPrice) / range) * 400);
+                          const y = 400 - (((priceValue - adjustedMin) / adjustedRange) * 400);
                           
                           // Check if there's a gap from previous point
                           if (idx > 0) {
@@ -1365,61 +1550,68 @@ export default function StatisticsPage() {
                             />
                           ))}
                           
-                          {/* Final Price Line (blue) */}
+                          {/* Final Price Line (blue) - Connected dots only */}
                           {finalPriceSegments.map((segment, segIdx) => (
-                            <polyline
-                              key={`final-${segIdx}`}
-                              points={segment.join(' ')}
-                              fill="none"
-                              stroke="#3b82f6"
-                              strokeWidth="3"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          ))}
-                          
-                          {/* Data points */}
-                          {sortedData.map((point, idx) => {
-                            const currentDate = new Date(point.date).getTime();
-                            const x = ((currentDate - minDate) / dateRange) * 1000;
-                            
-                            const finalPrice = Number(point.avg_price);
-                            const originalPrice = Number(point.avg_original_price || point.avg_price);
-                            
-                            const finalY = 400 - (((finalPrice - minPrice) / range) * 400);
-                            const originalY = 400 - (((originalPrice - minPrice) / range) * 400);
-                            
-                            return (
-                              <g key={idx}>
-                                {/* Original price point (if different from final) */}
-                                {hasDiscounts && originalPrice !== finalPrice && (
+                            <g key={`final-${segIdx}`}>
+                              {/* Draw connecting lines */}
+                              <polyline
+                                points={segment.join(' ')}
+                                fill="none"
+                                stroke="#3b82f6"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                              {/* Draw dots at each point */}
+                              {segment.map((point, pointIdx) => {
+                                const [x, y] = point.split(',').map(Number);
+                                return (
                                   <circle
+                                    key={`final-dot-${segIdx}-${pointIdx}`}
                                     cx={x}
-                                    cy={originalY}
+                                    cy={y}
                                     r="4"
-                                    fill="#9ca3af"
+                                    fill="#3b82f6"
                                     stroke="white"
                                     strokeWidth="2"
-                                  >
-                                    <title>{`${formatPersianDate(point.date)}: قیمت اصلی ${formatPrice(originalPrice)}`}</title>
-                                  </circle>
-                                )}
-                                
-                                {/* Final price point */}
-                                <circle
-                                  cx={x}
-                                  cy={finalY}
-                                  r="6"
-                                  fill="#3b82f6"
-                                  stroke="white"
-                                  strokeWidth="2"
-                                  className="hover:r-8 cursor-pointer transition-all"
-                                >
-                                  <title>{`${formatPersianDate(point.date)}: ${formatPrice(finalPrice)}${originalPrice !== finalPrice ? ` (قیمت اصلی: ${formatPrice(originalPrice)})` : ''}`}</title>
-                                </circle>
-                              </g>
-                            );
-                          })}
+                                    className="hover:r-6 cursor-pointer transition-all"
+                                  />
+                                );
+                              })}
+                            </g>
+                          ))}
+                          
+                          {/* Original Price Line (gray) - Connected dots only */}
+                          {hasDiscounts && originalPriceSegments.map((segment, segIdx) => (
+                            <g key={`original-${segIdx}`}>
+                              {/* Draw connecting lines */}
+                              <polyline
+                                points={segment.join(' ')}
+                                fill="none"
+                                stroke="#9ca3af"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeDasharray="5,5"
+                              />
+                              {/* Draw dots at each point */}
+                              {segment.map((point, pointIdx) => {
+                                const [x, y] = point.split(',').map(Number);
+                                return (
+                                  <circle
+                                    key={`original-dot-${segIdx}-${pointIdx}`}
+                                    cx={x}
+                                    cy={y}
+                                    r="3"
+                                    fill="#9ca3af"
+                                    stroke="white"
+                                    strokeWidth="1"
+                                    className="hover:r-5 cursor-pointer transition-all"
+                                  />
+                                );
+                              })}
+                            </g>
+                          ))}
                         </>
                       );
                     })()}
@@ -1487,7 +1679,34 @@ export default function StatisticsPage() {
 
                 {/* Save Current Filter */}
                 <div className="mb-4 p-3 bg-white rounded-lg border border-blue-300">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">نام فیلتر</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">نام فیلتر</label>
+                    <button
+                      onClick={async () => {
+                        setFilterName('');
+                        // Reset to earliest available date
+                        try {
+                          const response = await fetch('/api/price-trends?earliest=true');
+                          const result = await response.json();
+                          if (result.success && result.earliestDate) {
+                            setFromDate(result.earliestDate.split('T')[0]);
+                          } else {
+                            setFromDate(new Date().toISOString().split('T')[0]);
+                          }
+                        } catch (error) {
+                          setFromDate(new Date().toISOString().split('T')[0]);
+                        }
+                        setToDate(new Date().toISOString().split('T')[0]);
+                        setSelectedVendor('all');
+                        setSelectedGroup('all');
+                        setSelectedItem('all');
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      افزودن فیلتر جدید
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={filterName}
@@ -1503,7 +1722,7 @@ export default function StatisticsPage() {
                     {isSavingFilter ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      <Plus className="w-4 h-4" />
+                      <Save className="w-4 h-4" />
                     )}
                     اضافه کردن
                   </button>
@@ -1861,7 +2080,20 @@ export default function StatisticsPage() {
             {/* Save Filter Section - 30% wider */}
             <div className="lg:col-span-3">
               <div className="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-lg p-4 border-2 border-orange-200">
-                <h4 className="text-md font-semibold text-gray-700 mb-3">ذخیره فیلتر</h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-md font-semibold text-gray-700">ذخیره فیلتر</h4>
+                  <button
+                    onClick={() => {
+                      setComparisonFilterName('');
+                      setComparisonItems([]);
+                      setActiveFilterId(null);
+                    }}
+                    className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    افزودن فیلتر جدید
+                  </button>
+                </div>
                 {comparisonItems.length > 0 ? (
                   <div className="space-y-3">
                     <input
@@ -1900,13 +2132,28 @@ export default function StatisticsPage() {
                   ) : (
                     <div className="space-y-1 max-h-32 overflow-y-auto">
                       {comparisonFilters.map((filter) => (
-                        <div key={filter.id} className="flex items-center justify-between bg-white p-2 rounded border hover:bg-gray-50 cursor-pointer transition-colors">
+                        <div 
+                          key={filter.id} 
+                          className={`flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${
+                            activeFilterId === filter.id 
+                              ? 'bg-blue-100 border-blue-400 shadow-md' 
+                              : 'bg-white hover:bg-gray-50'
+                          }`}
+                        >
                           <div 
                             className="flex-1 cursor-pointer"
                             onClick={() => applyComparisonFilter(filter)}
                           >
-                            <span className="text-xs text-gray-700 truncate">{filter.name}</span>
-                            <span className="text-xs text-gray-500 block">({filter.items.length} آیتم)</span>
+                            <span className={`text-xs truncate ${
+                              activeFilterId === filter.id ? 'text-blue-800 font-semibold' : 'text-gray-700'
+                            }`}>
+                              {filter.name}
+                            </span>
+                            <span className={`text-xs block ${
+                              activeFilterId === filter.id ? 'text-blue-600' : 'text-gray-500'
+                            }`}>
+                              ({filter.items.length} آیتم)
+                            </span>
                           </div>
                           <button
                             onClick={(e) => {
@@ -1937,7 +2184,7 @@ export default function StatisticsPage() {
               گران‌ترین محصولات
             </h2>
             <div className="space-y-3">
-              {data.topExpensive.slice(0, 5).map((item, idx) => (
+              {(expandedExpensive.length > 0 ? expandedExpensive : data.topExpensive.slice(0, 5)).map((item, idx) => (
                 <div key={idx} className="border-b-2 border-gray-200 pb-3 last:border-0 hover:bg-red-50 p-2 rounded transition-colors">
                   <p className="font-bold text-gray-900 text-base">{item.name}</p>
                   <p className="text-sm text-gray-700 font-medium mt-1">{item.vendor_name}</p>
@@ -1947,6 +2194,38 @@ export default function StatisticsPage() {
                 </div>
               ))}
             </div>
+            
+            {/* Show More Button for Expensive Items */}
+            {expandedExpensive.length === 0 && (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={fetchMoreExpensive}
+                  disabled={isLoadingExpensive}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+                >
+                  {isLoadingExpensive ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      در حال بارگذاری...
+                    </>
+                  ) : (
+                    'نمایش بیشتر'
+                  )}
+                </button>
+              </div>
+            )}
+            
+            {/* Show Less Button for Expensive Items */}
+            {expandedExpensive.length > 0 && (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => setExpandedExpensive([])}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                >
+                  نمایش کمتر
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Most Discounted */}
@@ -1956,7 +2235,7 @@ export default function StatisticsPage() {
               بیشترین تخفیف‌ها
             </h2>
             <div className="space-y-3">
-              {data.mostDiscounted.slice(0, 5).map((item, idx) => (
+              {(expandedDiscounted.length > 0 ? expandedDiscounted : data.mostDiscounted.slice(0, 5)).map((item, idx) => (
                 <div key={idx} className="border-b-2 border-gray-200 pb-3 last:border-0 hover:bg-green-50 p-2 rounded transition-colors">
                   <p className="font-bold text-gray-900 text-base">{item.name}</p>
                   <p className="text-sm text-gray-700 font-medium mt-1">{item.vendor_name}</p>
@@ -1976,6 +2255,38 @@ export default function StatisticsPage() {
                 </div>
               ))}
             </div>
+            
+            {/* Show More Button for Discounted Items */}
+            {expandedDiscounted.length === 0 && (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={fetchMoreDiscounted}
+                  disabled={isLoadingDiscounted}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+                >
+                  {isLoadingDiscounted ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      در حال بارگذاری...
+                    </>
+                  ) : (
+                    'نمایش بیشتر'
+                  )}
+                </button>
+              </div>
+            )}
+            
+            {/* Show Less Button for Discounted Items */}
+            {expandedDiscounted.length > 0 && (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => setExpandedDiscounted([])}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                >
+                  نمایش کمتر
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

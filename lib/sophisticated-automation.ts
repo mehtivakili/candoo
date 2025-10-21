@@ -90,8 +90,6 @@ export class SophisticatedSnappFoodAutomation {
     waitForResults: 5000
   }): Promise<void> {
     try {
-      console.log('🚀 Starting SnappFood Automation...');
-      
       // Check if browser is already running
       if (this.isBrowserOpen()) {
         console.log('✅ Browser already running, reusing existing instance...');

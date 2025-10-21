@@ -18,7 +18,7 @@ const PersianDatePicker: React.FC<PersianDatePickerProps> = ({
   className = ''
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [currentYear, setCurrentYear] = useState(1403);
+  const [currentYear, setCurrentYear] = useState(1404); // Updated to current Persian year
   const [currentMonth, setCurrentMonth] = useState(1);
   const [selectedDate, setSelectedDate] = useState<{ year: number; month: number; day: number } | null>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
@@ -42,8 +42,16 @@ const PersianDatePicker: React.FC<PersianDatePickerProps> = ({
 
   // Convert Persian date to Gregorian
   const persianToGregorian = (year: number, month: number, day: number) => {
-    const persianDate = new PersianDate([year, month, day]);
-    return persianDate.toDate();
+    try {
+      const persianDate = new PersianDate([year, month, day]);
+      const gregorianDate = persianDate.toDate();
+      
+      return gregorianDate;
+    } catch (error) {
+      console.error('❌ Error converting Persian to Gregorian:', error);
+      // Fallback to current date
+      return new Date();
+    }
   };
 
   // Get days in month
@@ -66,6 +74,11 @@ const PersianDatePicker: React.FC<PersianDatePickerProps> = ({
       setSelectedDate(persianDate);
       setCurrentYear(persianDate.year);
       setCurrentMonth(persianDate.month);
+    } else {
+      const today = new PersianDate();
+      setCurrentYear(today.year());
+      setCurrentMonth(today.month());
+      setSelectedDate(null);
     }
   }, [value]);
 
@@ -77,6 +90,7 @@ const PersianDatePicker: React.FC<PersianDatePickerProps> = ({
     // Convert to Gregorian and format as YYYY-MM-DD
     const gregorianDate = persianToGregorian(currentYear, currentMonth, day);
     const formattedDate = gregorianDate.toISOString().split('T')[0];
+    
     onChange(formattedDate);
     setIsOpen(false);
   };
@@ -204,26 +218,26 @@ const PersianDatePicker: React.FC<PersianDatePickerProps> = ({
               </select>
               
               {/* Year Selection */}
-              <select
-                value={currentYear}
-                onChange={(e) => setCurrentYear(parseInt(e.target.value))}
-                className="px-2 py-1 border border-gray-300 rounded text-sm font-medium text-gray-800 bg-white focus:outline-none focus:border-blue-500"
-              >
-                {(() => {
-                  const currentPersianYear = new PersianDate().year();
-                  const startYear = currentPersianYear - 10; // 10 years before current
-                  const endYear = currentPersianYear + 10; // 10 years after current
-                  
-                  return Array.from({ length: endYear - startYear + 1 }, (_, i) => {
-                    const year = startYear + i;
-                    return (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    );
-                  });
-                })()}
-              </select>
+                     <select
+                       value={currentYear}
+                       onChange={(e) => setCurrentYear(parseInt(e.target.value))}
+                       className="px-2 py-1 border border-gray-300 rounded text-sm font-medium text-gray-800 bg-white focus:outline-none focus:border-blue-500"
+                     >
+                       {(() => {
+                         const currentPersianYear = new PersianDate().year();
+                         const startYear = currentPersianYear - 2; // 2 years before current
+                         const endYear = currentPersianYear + 1; // 1 year after current
+                         
+                         return Array.from({ length: endYear - startYear + 1 }, (_, i) => {
+                           const year = startYear + i;
+                           return (
+                             <option key={year} value={year}>
+                               {year}
+                             </option>
+                           );
+                         });
+                       })()}
+                     </select>
             </div>
             
             <button
