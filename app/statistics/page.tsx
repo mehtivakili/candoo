@@ -191,6 +191,7 @@ export default function StatisticsPage() {
     const date = new Date('2025-10-25');
     return date.toISOString().split('T')[0];
   });
+  const [useTodayAsToDate, setUseTodayAsToDate] = useState(false);
 
   // Dynamic default interval calculation
   const calculateDefaultInterval = (dataRange: number) => {
@@ -320,7 +321,7 @@ export default function StatisticsPage() {
   useEffect(() => {
     // Always fetch data, even with empty dates (shows all data)
     fetchPriceTrends();
-  }, [fromDate, toDate, selectedVendor, selectedGroup, selectedItem]);
+  }, [fromDate, toDate, useTodayAsToDate, selectedVendor, selectedGroup, selectedItem]);
 
   // Force initial data fetch after component mounts
   useEffect(() => {
@@ -423,102 +424,74 @@ export default function StatisticsPage() {
   // Export individual price trend filter
   const exportPriceTrendFilterToExcel = async (filter: SavedFilter) => {
     try {
-      // Apply the filter temporarily to get the data
-      const originalFromDate = fromDate;
-      const originalToDate = toDate;
-      const originalSelectedVendor = selectedVendor;
-      const originalSelectedGroup = selectedGroup;
-      const originalSelectedItem = selectedItem;
-      
-      // Set filter values
-      setFromDate(filter.from_date || '');
-      setToDate(filter.to_date || '');
-      setSelectedVendor(filter.vendor || 'all');
-      setSelectedGroup(filter.category || 'all');
-      setSelectedItem(filter.item || 'all');
-      
-      // Wait a bit for state to update, then fetch data
-      setTimeout(async () => {
-        try {
-          const params = new URLSearchParams();
-          if (filter.from_date) params.append('from_date', filter.from_date);
-          if (filter.to_date) params.append('to_date', filter.to_date);
-          if (filter.vendor && filter.vendor !== 'all') params.append('vendor_name', filter.vendor);
-          if (filter.category && filter.category !== 'all') params.append('group', filter.category);
-          if (filter.item && filter.item !== 'all') params.append('article_id', filter.item);
+      // Use the filter's settings directly without changing current state
+      const params = new URLSearchParams();
+      if (filter.from_date) params.append('from_date', filter.from_date);
+      if (filter.to_date) params.append('to_date', filter.to_date);
+      if (filter.vendor && filter.vendor !== 'all') params.append('vendor_name', filter.vendor);
+      if (filter.category && filter.category !== 'all') params.append('group', filter.category);
+      if (filter.item && filter.item !== 'all') params.append('article_id', filter.item);
 
-          const response = await fetch(`/api/price-trends?${params.toString()}`);
-          const result = await response.json();
+      const response = await fetch(`/api/price-trends?${params.toString()}`);
+      const result = await response.json();
 
-          if (result.success && result.data.length > 0) {
-            // Create filename with current date
-            const now = new Date();
-            const persianDate = new PersianDate(now);
-            const dateStr = persianDate.format('YYYY-MM-DD_HH-mm-ss');
-            const filename = `روند_قیمت_${filter.name}_${dateStr}.xlsx`;
+      if (result.success && result.data.length > 0) {
+        // Create filename with current date
+        const now = new Date();
+        const persianDate = new PersianDate(now);
+        const dateStr = persianDate.format('YYYY-MM-DD_HH-mm-ss');
+        const filename = `روند_قیمت_${filter.name}_${dateStr}.xlsx`;
 
-            // Prepare data for Excel
-            const excelData = [];
-            
-            // First row: Product info
-            excelData.push([
-              'نام محصول',
-              'دسته‌بندی',
-              'فروشنده'
-            ]);
-            excelData.push([
-              filter.item || 'همه محصولات',
-              filter.category || 'همه دسته‌ها',
-              filter.vendor || 'همه فروشندگان'
-            ]);
-            
-            // Empty row
-            excelData.push([]);
-            
-            // Headers for time series data
-            excelData.push([
-              'ردیف',
-              'تاریخ و زمان',
-              'قیمت با تخفیف',
-              'قیمت اصلی'
-            ]);
-            
-            // Time series data
-            result.data.forEach((item: any, index: number) => {
-              const date = new Date(item.date);
-              const persianDateTime = new PersianDate(date);
-              const formattedDateTime = persianDateTime.format('HH:mm - DD/MM/YYYY');
-              
-              excelData.push([
-                index + 1,
-                formattedDateTime,
-                item.avg_price,
-                item.avg_original_price || item.avg_price
-              ]);
-            });
+        // Prepare data for Excel
+        const excelData = [];
+        
+        // First row: Product info
+        excelData.push([
+          'نام محصول',
+          'دسته‌بندی',
+          'فروشنده'
+        ]);
+        excelData.push([
+          filter.item || 'همه محصولات',
+          filter.category || 'همه دسته‌ها',
+          filter.vendor || 'همه فروشندگان'
+        ]);
+        
+        // Empty row
+        excelData.push([]);
+        
+        // Headers for time series data
+        excelData.push([
+          'ردیف',
+          'تاریخ و زمان',
+          'قیمت با تخفیف',
+          'قیمت اصلی'
+        ]);
+        
+        // Time series data
+        result.data.forEach((item: any, index: number) => {
+          const date = new Date(item.date);
+          const persianDateTime = new PersianDate(date);
+          const formattedDateTime = persianDateTime.format('HH:mm - DD/MM/YYYY');
+          
+          excelData.push([
+            index + 1,
+            formattedDateTime,
+            item.avg_price,
+            item.avg_original_price || item.avg_price
+          ]);
+        });
 
-            // Create workbook and worksheet
-            const ws = XLSX.utils.aoa_to_sheet(excelData);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'روند قیمت');
+        // Create workbook and worksheet
+        const ws = XLSX.utils.aoa_to_sheet(excelData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'روند قیمت');
 
-            // Download file
-            XLSX.writeFile(wb, filename);
-          } else {
-            alert('هیچ داده‌ای برای این فیلتر وجود ندارد');
-          }
-        } catch (error) {
-          console.error('❌ Error fetching filter data:', error);
-          alert('خطا در دریافت داده‌های فیلتر');
-        } finally {
-          // Restore original values
-          setFromDate(originalFromDate);
-          setToDate(originalToDate);
-          setSelectedVendor(originalSelectedVendor);
-          setSelectedGroup(originalSelectedGroup);
-          setSelectedItem(originalSelectedItem);
-        }
-      }, 100);
+        // Download file
+        XLSX.writeFile(wb, filename);
+      } else {
+        alert('هیچ داده‌ای برای این فیلتر وجود ندارد');
+      }
       
     } catch (error) {
       console.error('❌ Error exporting price trend filter:', error);
@@ -537,6 +510,9 @@ export default function StatisticsPage() {
       const vendorName = selectedVendor !== 'all' ? selectedVendor : 'همه فروشندگان';
       const groupName = selectedGroup !== 'all' ? selectedGroup : 'همه دسته‌ها';
       const itemName = selectedItem !== 'all' ? selectedItem : 'همه محصولات';
+      
+      // Use effective toDate (today if checkbox is checked)
+      const effectiveToDate = useTodayAsToDate ? new Date().toISOString().split('T')[0] : toDate;
       
       // Create filename with current date
       const now = new Date();
@@ -617,20 +593,28 @@ export default function StatisticsPage() {
       // Headers
       excelData.push([
         'نام محصول',
-        'دسته‌بندی',
         'فروشنده',
-        'قیمت',
-        'قیمت با تخفیف'
+        'قیمت اصلی',
+        'قیمت با تخفیف',
+        'درصد تخفیف',
+        'تاریخ آخرین به‌روزرسانی'
       ]);
       
       // Data rows
       comparison.items.forEach((item) => {
+        const originalPrice = item.original_price || item.price;
+        const discountedPrice = item.price;
+        const discountPercent = originalPrice && originalPrice !== discountedPrice 
+          ? Math.round(((originalPrice - discountedPrice) / originalPrice) * 100)
+          : 0;
+        
         excelData.push([
           item.article_id,
-          '', // category - not available in ComparisonItem
           item.vendor_name,
-          item.original_price || item.price,
-          item.price
+          originalPrice || 0, // Ensure we don't show null/undefined
+          discountedPrice || 0, // Ensure we don't show null/undefined
+          discountPercent > 0 ? `${discountPercent}%` : 'بدون تخفیف',
+          item.created_at ? new Date(item.created_at).toLocaleDateString('fa-IR') : 'نامشخص'
         ]);
       });
 
@@ -655,7 +639,11 @@ export default function StatisticsPage() {
       const params = new URLSearchParams();
       // Only add date filters if they have values
       if (fromDate && fromDate.trim() !== '') params.append('from_date', fromDate);
-      if (toDate && toDate.trim() !== '') params.append('to_date', toDate);
+      
+      // Use today's date if checkbox is checked, otherwise use selected toDate
+      const effectiveToDate = useTodayAsToDate ? new Date().toISOString().split('T')[0] : toDate;
+      if (effectiveToDate && effectiveToDate.trim() !== '') params.append('to_date', effectiveToDate);
+      
       if (selectedVendor !== 'all') params.append('vendor_name', selectedVendor);
       if (selectedGroup !== 'all') params.append('group', selectedGroup);
       if (selectedItem !== 'all') params.append('article_id', selectedItem);
@@ -736,17 +724,17 @@ export default function StatisticsPage() {
       const result = await response.json();
 
       if (result.success) {
-        // Update items with actual price data from database
+        // Update items with actual price data from database (latest prices)
         const updatedItems = comparisonItems.map(item => {
           const dbItem = result.data.find((db: any) => 
             db.vendor_name === item.vendor_name && db.article_id === item.article_id
           );
           return dbItem ? {
             ...item,
-            price: parseFloat(dbItem.price),
+            price: parseFloat(dbItem.price), // This is the discounted price
             original_price: dbItem.original_price ? parseFloat(dbItem.original_price) : null,
             discount: dbItem.discount,
-            created_at: dbItem.created_at
+            created_at: dbItem.created_at // Latest update date
           } : item;
         });
         setComparisonItems(updatedItems);
@@ -776,29 +764,82 @@ export default function StatisticsPage() {
     }
   };
 
-  const addComparisonItem = () => {
+  const addComparisonItem = async () => {
     if (compSelectedVendor === 'all' || compSelectedItem === 'all') {
       return;
     }
 
-    const newItem: ComparisonItem = {
-      vendor_name: compSelectedVendor,
-      article_id: compSelectedItem,
-      price: 0,
-      original_price: null,
-      discount: null,
-      created_at: new Date().toISOString()
-    };
+    // First, fetch the actual price data for this item
+    try {
+      const response = await fetch('/api/comparison', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          items: [{ 
+            vendor_name: compSelectedVendor, 
+            article_id: compSelectedItem 
+          }] 
+        })
+      });
 
-    const updatedItems = [...comparisonItems, newItem];
-    setComparisonItems(updatedItems);
-    setCompSelectedVendor('all');
-    setCompSelectedGroup('all');
-    setCompSelectedItem('all');
-    
-    // Auto-save if there's an active filter
-    if (activeFilterId) {
-      autoSaveActiveFilter(updatedItems);
+      const result = await response.json();
+
+      let newItem: ComparisonItem;
+      if (result.success && result.data.length > 0) {
+        // Use actual data from database
+        const dbItem = result.data[0];
+        newItem = {
+          vendor_name: compSelectedVendor,
+          article_id: compSelectedItem,
+          price: parseFloat(dbItem.price),
+          original_price: dbItem.original_price ? parseFloat(dbItem.original_price) : null,
+          discount: dbItem.discount,
+          created_at: dbItem.created_at
+        };
+      } else {
+        // Fallback if no data found
+        newItem = {
+          vendor_name: compSelectedVendor,
+          article_id: compSelectedItem,
+          price: 0,
+          original_price: null,
+          discount: null,
+          created_at: new Date().toISOString()
+        };
+      }
+
+      const updatedItems = [...comparisonItems, newItem];
+      setComparisonItems(updatedItems);
+      setCompSelectedVendor('all');
+      setCompSelectedGroup('all');
+      setCompSelectedItem('all');
+      
+      // Auto-save if there's an active filter
+      if (activeFilterId) {
+        autoSaveActiveFilter(updatedItems);
+      }
+    } catch (error) {
+      console.error('Error fetching price data for new item:', error);
+      // Fallback to original behavior if API call fails
+      const newItem: ComparisonItem = {
+        vendor_name: compSelectedVendor,
+        article_id: compSelectedItem,
+        price: 0,
+        original_price: null,
+        discount: null,
+        created_at: new Date().toISOString()
+      };
+
+      const updatedItems = [...comparisonItems, newItem];
+      setComparisonItems(updatedItems);
+      setCompSelectedVendor('all');
+      setCompSelectedGroup('all');
+      setCompSelectedItem('all');
+      
+      // Auto-save if there's an active filter
+      if (activeFilterId) {
+        autoSaveActiveFilter(updatedItems);
+      }
     }
   };
 
@@ -1023,7 +1064,7 @@ export default function StatisticsPage() {
         body: JSON.stringify({
           name: filterName,
           from_date: fromDate,
-          to_date: toDate,
+          to_date: useTodayAsToDate ? new Date().toISOString().split('T')[0] : toDate,
           vendor: selectedVendor,
           category: selectedGroup,
           item: selectedItem
@@ -1595,12 +1636,30 @@ export default function StatisticsPage() {
                 {/* Date To */}
                 <div className="flex flex-col">
                   <label className="block text-sm font-medium text-gray-700 mb-1">تا تاریخ</label>
-                  <PersianDatePicker
-                    value={toDate}
-                    onChange={setToDate}
-                    placeholder="تا تاریخ را انتخاب کنید"
-                    className="w-full"
-                  />
+                  <div className="space-y-2">
+                    <PersianDatePicker
+                      value={toDate}
+                      onChange={setToDate}
+                      placeholder="تا تاریخ را انتخاب کنید"
+                      className={`w-full ${useTodayAsToDate ? 'opacity-50 pointer-events-none' : ''}`}
+                      disabled={useTodayAsToDate}
+                    />
+                    <label className="flex items-center space-x-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={useTodayAsToDate}
+                        onChange={(e) => {
+                          setUseTodayAsToDate(e.target.checked);
+                          if (e.target.checked) {
+                            // Set toDate to today when checkbox is checked
+                            setToDate(new Date().toISOString().split('T')[0]);
+                          }
+                        }}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">تا امروز</span>
+                    </label>
+                  </div>
                 </div>
 
 
@@ -1753,8 +1812,25 @@ export default function StatisticsPage() {
                       
                       // Calculate date range for proper X positioning
                       const dates = sortedData.map(d => new Date(d.date).getTime());
-                      const minDate = Math.min(...dates);
-                      const maxDate = Math.max(...dates);
+                      let minDate = Math.min(...dates);
+                      let maxDate = Math.max(...dates);
+                      
+                      // If "از تاریخ" is set, use it as the minimum date
+                      if (fromDate && fromDate.trim() !== '') {
+                        const fromDateValue = new Date(fromDate).getTime();
+                        minDate = Math.min(minDate, fromDateValue);
+                      }
+                      
+                      // If "تا امروز" is checked, extend the range to include today
+                      if (useTodayAsToDate) {
+                        const today = new Date().getTime();
+                        maxDate = Math.max(maxDate, today);
+                      } else if (toDate && toDate.trim() !== '') {
+                        // If "تا تاریخ" is set and checkbox is not checked, use it as the maximum date
+                        const toDateValue = new Date(toDate).getTime();
+                        maxDate = Math.max(maxDate, toDateValue);
+                      }
+                      
                       const dateRange = maxDate - minDate || 1;
                       
                       // Helper function to create segments
@@ -1891,11 +1967,30 @@ export default function StatisticsPage() {
                     
                     const firstDate = formatPersianDate(sortedData[0].date);
                     const middleDate = sortedData.length > 2 ? formatPersianDate(sortedData[Math.floor(sortedData.length / 2)].date) : '';
-                    const lastDate = formatPersianDate(sortedData[sortedData.length - 1].date);
+                    
+                    // If "از تاریخ" is set, use it as the first date, otherwise use the first data point
+                    let firstLabelDate;
+                    if (fromDate && fromDate.trim() !== '') {
+                      firstLabelDate = formatPersianDate(fromDate);
+                    } else {
+                      firstLabelDate = firstDate;
+                    }
+                    
+                    // If "تا امروز" is checked, use today's date as the last date, otherwise use the last data point
+                    let lastDate;
+                    if (useTodayAsToDate) {
+                      const today = new Date();
+                      lastDate = formatPersianDate(today.toISOString().split('T')[0]);
+                    } else if (toDate && toDate.trim() !== '') {
+                      // If "تا تاریخ" is set and checkbox is not checked, use it as the last date
+                      lastDate = formatPersianDate(toDate);
+                    } else {
+                      lastDate = formatPersianDate(sortedData[sortedData.length - 1].date);
+                    }
                     
                     return (
                       <>
-                        <span>{firstDate}</span>
+                        <span>{firstLabelDate}</span>
                         {sortedData.length > 2 && (
                           <span>{middleDate}</span>
                         )}
@@ -2059,9 +2154,19 @@ export default function StatisticsPage() {
 
         {/* Item Comparison Section - Moved below price trends */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            <BarChart className="w-6 h-6 text-purple-600" />
-            مقایسه قیمت محصولات
+          <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BarChart className="w-6 h-6 text-purple-600" />
+              مقایسه قیمت محصولات
+            </div>
+            <button
+              onClick={fetchComparisonData}
+              disabled={isLoadingComparison || comparisonItems.length === 0}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+            >
+              {isLoadingComparison ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              به‌روزرسانی قیمت‌ها
+            </button>
           </h2>
 
           {/* Chart Section - Full Width */}
@@ -2107,7 +2212,7 @@ export default function StatisticsPage() {
                         {/* Y-axis labels - K format (0 to max) */}
                         <div className="absolute left-0 top-0 w-20 h-full flex flex-col justify-between pr-2 text-right">
                           {(() => {
-                            const maxPrice = Math.max(...comparisonItems.map(i => i.price));
+                            const maxPrice = Math.max(...comparisonItems.map(i => i.original_price || i.price));
                             const topValue = maxPrice * 1.1; // 10% MORE than highest amount
                             const step = topValue / 5;
                             return [5, 4, 3, 2, 1, 0].map((i) => (
@@ -2137,7 +2242,9 @@ export default function StatisticsPage() {
 
                           {/* Data points as bars */}
                           {comparisonItems.map((item, index) => {
-                            const maxPrice = Math.max(...comparisonItems.map(i => i.price));
+                            // Use original_price for chart display (not discounted price)
+                            const displayPrice = item.original_price || item.price;
+                            const maxPrice = Math.max(...comparisonItems.map(i => i.original_price || i.price));
                             const topValue = maxPrice * 1.1;
                             const minPrice = 0;
                             const range = topValue - minPrice;
@@ -2146,7 +2253,7 @@ export default function StatisticsPage() {
                             const leftMargin = 50; // Add 50px left margin
                             const availableWidth = 1000 - leftMargin; // Available width after margin
                             const barWidth = availableWidth / comparisonItems.length;
-                            const barHeight = ((item.price - minPrice) / range) * 400;
+                            const barHeight = ((displayPrice - minPrice) / range) * 400;
                             const x = leftMargin + (index * barWidth) + (barWidth * 0.15); // Add margin and center bar
                             const y = 400 - barHeight; // Start from bottom (zero baseline)
                             
@@ -2173,7 +2280,7 @@ export default function StatisticsPage() {
                                   className="text-xs font-bold fill-gray-800"
                                   style={{ fontSize: '10px' }}
                                 >
-                                  {formatNumber(Math.round(item.price / 1000))}K
+                                  {formatNumber(Math.round(displayPrice / 1000))}K
                                 </text>
                               </g>
                             );
@@ -2181,11 +2288,11 @@ export default function StatisticsPage() {
 
                           {/* Average line */}
                           {showAverageLine && comparisonItems.length > 0 && (() => {
-                            const maxPrice = Math.max(...comparisonItems.map(i => i.price));
+                            const maxPrice = Math.max(...comparisonItems.map(i => i.original_price || i.price));
                             const topValue = maxPrice * 1.1;
                             const minPrice = 0;
                             const range = topValue - minPrice;
-                            const averagePrice = comparisonItems.reduce((sum, item) => sum + item.price, 0) / comparisonItems.length;
+                            const averagePrice = comparisonItems.reduce((sum, item) => sum + (item.original_price || item.price), 0) / comparisonItems.length;
                             const averageY = 400 - (((averagePrice - minPrice) / range) * 400);
                             const leftMargin = 50;
                             const availableWidth = 1000 - leftMargin;

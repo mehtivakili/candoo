@@ -9,13 +9,15 @@ interface PersianDatePickerProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 const PersianDatePicker: React.FC<PersianDatePickerProps> = ({
   value,
   onChange,
   placeholder = 'تاریخ را انتخاب کنید',
-  className = ''
+  className = '',
+  disabled = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentYear, setCurrentYear] = useState(1404); // Updated to current Persian year
@@ -89,7 +91,12 @@ const PersianDatePicker: React.FC<PersianDatePickerProps> = ({
     
     // Convert to Gregorian and format as YYYY-MM-DD
     const gregorianDate = persianToGregorian(currentYear, currentMonth, day);
-    const formattedDate = gregorianDate.toISOString().split('T')[0];
+    
+    // Use local date formatting to avoid timezone issues
+    const year = gregorianDate.getFullYear();
+    const month = String(gregorianDate.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(gregorianDate.getDate()).padStart(2, '0');
+    const formattedDate = `${year}-${month}-${dayStr}`;
     
     onChange(formattedDate);
     setIsOpen(false);
@@ -182,8 +189,11 @@ const PersianDatePicker: React.FC<PersianDatePickerProps> = ({
       {/* Input Field */}
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-gray-800 h-10 text-right flex items-center justify-between"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className={`w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-gray-800 h-10 text-right flex items-center justify-between ${
+          disabled ? 'opacity-50 cursor-not-allowed bg-gray-100' : 'hover:border-gray-400'
+        }`}
       >
         <Calendar className="w-4 h-4 text-gray-400" />
         <span className={formatDisplayValue() ? 'text-gray-800' : 'text-gray-400'}>
