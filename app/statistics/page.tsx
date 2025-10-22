@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth';
 import PersianDatePicker from '@/components/PersianDatePicker';
 import { formatPersianDate } from '@/lib/persian-date-utils';
 import * as XLSX from 'xlsx';
+import html2canvas from 'html2canvas';
 import PersianDate from 'persian-date';
 
 interface GeneralStats {
@@ -213,7 +214,7 @@ export default function StatisticsPage() {
   const [comparisonFilterName, setComparisonFilterName] = useState('');
   const [isSavingComparisonFilter, setIsSavingComparisonFilter] = useState(false);
   const [isLoadingComparison, setIsLoadingComparison] = useState(false);
-  const [showAverageLine, setShowAverageLine] = useState(false);
+  const [showAverageLine, setShowAverageLine] = useState(true);
   const [activeFilterId, setActiveFilterId] = useState<number | null>(null);
   
   // Comparison selection states
@@ -572,6 +573,153 @@ export default function StatisticsPage() {
       console.error('❌ Error exporting price trends:', error);
       alert('خطا در صادرات فایل اکسل');
     }
+  };
+
+  const downloadComparisonChart = async () => {
+    try {
+      if (comparisonItems.length === 0) {
+        alert('هیچ داده‌ای برای دانلود وجود ندارد');
+        return;
+      }
+
+      // Create filename with current date and filter name
+      const now = new Date();
+      const persianDate = new PersianDate(now);
+      const dateStr = persianDate.format('YYYY-MM-DD_HH-mm-ss');
+      
+      // Get filter name if available
+      const filterName = activeFilterId ? 
+        comparisonFilters.find(f => f.id === activeFilterId)?.name || 'مقایسه_قیمت' :
+        'مقایسه_قیمت';
+      
+      const filename = `${filterName}_${dateStr}.png`;
+
+      // Use the alternative canvas method directly since html2canvas has issues with SVG
+      await downloadComparisonChartAlternative(filename);
+
+    } catch (error) {
+      console.error('❌ Error downloading comparison chart:', error);
+      alert('خطا در دانلود تصویر. لطفاً دوباره تلاش کنید.');
+    }
+  };
+
+  const downloadComparisonChartAlternative = async (filename: string) => {
+    // Alternative method: create a proper canvas chart
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas context not available');
+
+    // Set canvas size
+    canvas.width = 1200;
+    canvas.height = 600;
+
+    // Fill background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Add title
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('مقایسه قیمت محصولات', canvas.width / 2, 40);
+
+    // Add data info
+    ctx.font = '16px Arial';
+    ctx.fillText(`تعداد محصولات: ${comparisonItems.length}`, canvas.width / 2, 70);
+
+    // Create bar chart
+    if (comparisonItems.length > 0) {
+      const chartArea = {
+        x: 100,
+        y: 120,
+        width: canvas.width - 200,
+        height: canvas.height - 280 // More space for rotated labels
+      };
+
+      // Calculate max price for scaling
+      const maxPrice = Math.max(...comparisonItems.map(i => i.original_price || i.price));
+      const barWidth = chartArea.width / comparisonItems.length * 0.8;
+      const barSpacing = chartArea.width / comparisonItems.length;
+
+      // Draw Y-axis
+      ctx.strokeStyle = '#cccccc';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(chartArea.x, chartArea.y);
+      ctx.lineTo(chartArea.x, chartArea.y + chartArea.height);
+      ctx.stroke();
+
+      // Draw bars
+      comparisonItems.forEach((item, index) => {
+        const price = item.original_price || item.price;
+        const barHeight = (price / maxPrice) * chartArea.height;
+        const x = chartArea.x + (index * barSpacing) + (barSpacing - barWidth) / 2;
+        const y = chartArea.y + chartArea.height - barHeight;
+
+        // Draw bar
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillRect(x, y, barWidth, barHeight);
+
+        // Draw price label
+        ctx.fillStyle = '#000000';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(formatNumber(Math.round(price / 1000)) + 'K', x + barWidth / 2, y - 5);
+
+        // Draw rotated labels below each bar
+        ctx.save();
+        ctx.translate(x + barWidth / 2, chartArea.y + chartArea.height + 40);
+        ctx.rotate(-Math.PI / 4); // Rotate -45 degrees
+        
+        // Draw product name
+        ctx.fillStyle = '#000000';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'left';
+        const productName = item.article_id.length > 15 ? item.article_id.substring(0, 15) + '...' : item.article_id;
+        ctx.fillText(productName, 0, 0);
+        
+        // Draw vendor name below product name
+        ctx.font = '8px Arial';
+        ctx.fillStyle = '#666666';
+        const vendorName = item.vendor_name.length > 20 ? item.vendor_name.substring(0, 20) + '...' : item.vendor_name;
+        ctx.fillText(vendorName, 0, 12);
+        
+        ctx.restore();
+      });
+
+      // Draw average line
+      const averagePrice = comparisonItems.reduce((sum, item) => sum + (item.original_price || item.price), 0) / comparisonItems.length;
+      const averageY = chartArea.y + chartArea.height - (averagePrice / maxPrice) * chartArea.height;
+      
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(chartArea.x, averageY);
+      ctx.lineTo(chartArea.x + chartArea.width, averageY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Add average label
+      ctx.fillStyle = '#ef4444';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText(`میانگین: ${formatNumber(Math.round(averagePrice / 1000))}K`, chartArea.x + chartArea.width - 100, averageY - 5);
+    }
+
+    // Download
+    canvas.toBlob((blob: Blob | null) => {
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    }, 'image/png');
   };
 
   const exportComparisonToExcel = async (comparison: ComparisonFilter) => {
@@ -1976,17 +2124,9 @@ export default function StatisticsPage() {
                       firstLabelDate = firstDate;
                     }
                     
-                    // If "تا امروز" is checked, use today's date as the last date, otherwise use the last data point
-                    let lastDate;
-                    if (useTodayAsToDate) {
-                      const today = new Date();
-                      lastDate = formatPersianDate(today.toISOString().split('T')[0]);
-                    } else if (toDate && toDate.trim() !== '') {
-                      // If "تا تاریخ" is set and checkbox is not checked, use it as the last date
-                      lastDate = formatPersianDate(toDate);
-                    } else {
-                      lastDate = formatPersianDate(sortedData[sortedData.length - 1].date);
-                    }
+                    // Always use the actual last data point for X-axis labels
+                    // The chart scaling handles the date range, but labels should reflect actual data
+                    let lastDate = formatPersianDate(sortedData[sortedData.length - 1].date);
                     
                     return (
                       <>
@@ -2159,14 +2299,24 @@ export default function StatisticsPage() {
               <BarChart className="w-6 h-6 text-purple-600" />
               مقایسه قیمت محصولات
             </div>
-            <button
-              onClick={fetchComparisonData}
-              disabled={isLoadingComparison || comparisonItems.length === 0}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
-            >
-              {isLoadingComparison ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              به‌روزرسانی قیمت‌ها
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={fetchComparisonData}
+                disabled={isLoadingComparison || comparisonItems.length === 0}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+              >
+                {isLoadingComparison ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                به‌روزرسانی قیمت‌ها
+              </button>
+              <button
+                onClick={downloadComparisonChart}
+                disabled={comparisonItems.length === 0}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+              >
+                <Database className="w-4 h-4" />
+                دانلود PNG
+              </button>
+            </div>
           </h2>
 
           {/* Chart Section - Full Width */}
@@ -2206,7 +2356,7 @@ export default function StatisticsPage() {
                 ) : (
                   <div className="relative">
                     {/* Professional Chart using same style as price trends */}
-                    <div className="relative h-[500px] border-2 border-gray-200 rounded-lg p-6 pb-20 bg-gradient-to-br from-white to-gray-50">
+                    <div className="relative h-[500px] border-2 border-gray-200 rounded-lg p-6 pb-20 bg-gradient-to-br from-white to-gray-50 comparison-chart-container">
                       {/* Chart Area with Y-axis labels */}
                       <div className="relative h-[350px] mb-4">
                         {/* Y-axis labels - K format (0 to max) */}

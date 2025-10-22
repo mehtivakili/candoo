@@ -43,14 +43,18 @@ export async function GET(request: NextRequest) {
     let paramIndex = 1;
 
     if (fromDate) {
+      // Start from the beginning of the day
+      const startOfDay = `${fromDate} 00:00:00`;
       conditions.push(`created_at >= $${paramIndex}::timestamp`);
-      params.push(fromDate);
+      params.push(startOfDay);
       paramIndex++;
     }
 
     if (toDate) {
+      // Include the entire end date by adding 23:59:59
+      const endOfDay = `${toDate} 23:59:59`;
       conditions.push(`created_at <= $${paramIndex}::timestamp`);
-      params.push(toDate);
+      params.push(endOfDay);
       paramIndex++;
     }
 

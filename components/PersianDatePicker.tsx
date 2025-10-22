@@ -48,7 +48,14 @@ const PersianDatePicker: React.FC<PersianDatePickerProps> = ({
       const persianDate = new PersianDate([year, month, day]);
       const gregorianDate = persianDate.toDate();
       
-      return gregorianDate;
+      // Ensure we use local timezone to avoid date shifting
+      const localDate = new Date(
+        gregorianDate.getFullYear(),
+        gregorianDate.getMonth(),
+        gregorianDate.getDate()
+      );
+      
+      return localDate;
     } catch (error) {
       console.error('❌ Error converting Persian to Gregorian:', error);
       // Fallback to current date
